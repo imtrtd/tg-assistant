@@ -11,12 +11,36 @@ Telegram-ассистент: бот, который помогает автом�
 ## Быстрый старт
 
 1. Создайте бота через [@BotFather](https://t.me/BotFather) и получите токен.
-2. Клонируйте репозиторий:
+2. Клонируйте репозиторий и установите зависимости (нужен Python 3.11+):
    ```bash
    git clone https://github.com/imtrtd/tg-assistant.git
    cd tg-assistant
+   python -m venv .venv && source .venv/bin/activate
+   pip install -e ".[dev]"
    ```
-3. Задайте токен в переменной окружения `TELEGRAM_BOT_TOKEN`.
+3. Скопируйте `.env.example` в `.env` и укажите `TELEGRAM_BOT_TOKEN`.
+4. Запустите бота:
+   ```bash
+   python -m tg_assistant
+   ```
+
+## Разработка
+
+```bash
+ruff format .   # форматирование
+ruff check .    # линтер
+pytest          # тесты
+```
+
+Структура:
+
+```
+src/tg_assistant/
+  __main__.py      # точка входа, запуск polling
+  config.py        # настройки из окружения / .env
+  handlers/        # обработчики команд (aiogram Router)
+tests/             # тесты
+```
 
 ## Статус
 
