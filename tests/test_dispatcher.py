@@ -1,49 +1,6 @@
-from datetime import datetime
-from unittest.mock import AsyncMock
-
-import pytest
-from aiogram import Bot
-from aiogram.methods import SendMessage
-from aiogram.types import Chat, Message, Update
-from aiogram.types import User as TgUser
-
-from tg_assistant.bot import create_dispatcher
-from tg_assistant.config import Settings
 from tg_assistant.db import User
 
-ALLOWED_ID = 100
-
-
-@pytest.fixture
-def bot(monkeypatch):
-    calls = AsyncMock()
-    monkeypatch.setattr(Bot, "__call__", calls)
-    bot = Bot(token="42:TEST")
-    bot.calls = calls
-    return bot
-
-
-@pytest.fixture
-def dp(session_factory, monkeypatch):
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "42:TEST")
-    monkeypatch.setenv("ALLOWED_USER_IDS", str(ALLOWED_ID))
-    return create_dispatcher(Settings(_env_file=None), session_factory)
-
-
-def update_from(user_id: int, text: str) -> Update:
-    user = TgUser(id=user_id, is_bot=False, first_name="Аня")
-    message = Message(
-        message_id=1,
-        date=datetime.now(),
-        chat=Chat(id=user_id, type="private"),
-        from_user=user,
-        text=text,
-    )
-    return Update(update_id=1, message=message)
-
-
-def sent_texts(bot) -> list[str]:
-    return [c.args[0].text for c in bot.calls.await_args_list if isinstance(c.args[0], SendMessage)]
+from .conftest import ALLOWED_ID, sent_texts, update_from
 
 
 async def test_start_from_allowed_user_registers_and_greets(bot, dp, session_factory):
