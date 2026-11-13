@@ -26,3 +26,15 @@ async def test_handler_error_reported_to_user(bot, dp, monkeypatch):
     await dp.feed_update(bot, update_from(ALLOWED_ID, "/help"))
 
     assert sent_texts(bot) == ["Что-то пошло не так. Попробуйте ещё раз чуть позже."]
+
+
+async def test_startup_starts_and_shutdown_stops_scheduler(bot, dp):
+    data = {"dispatcher": dp, "bots": [bot], **dp.workflow_data}
+
+    await dp.emit_startup(bot=bot, **data)
+    task = dp.workflow_data["scheduler_task"]
+    assert not task.done()
+
+    await dp.emit_shutdown(bot=bot, **data)
+    assert task.cancelled()
+    assert "scheduler_task" not in dp.workflow_data

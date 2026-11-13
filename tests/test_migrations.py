@@ -12,4 +12,4 @@ def test_migrations_create_schema(tmp_path):
         tables = {
             row[0] for row in conn.execute("select name from sqlite_master where type='table'")
         }
-    assert {"users", "notes", "alembic_version"} <= tables
+    assert {"users", "notes", "reminders", "alembic_version"} <= tables
