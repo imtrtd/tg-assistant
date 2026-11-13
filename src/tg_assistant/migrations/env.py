@@ -6,7 +6,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from tg_assistant.config import DatabaseSettings
-from tg_assistant.db.models import Base
+from tg_assistant.db.models import Base, UTCDateTime
 
 config = context.config
 if config.config_file_name is not None:
@@ -16,8 +16,20 @@ target_metadata = Base.metadata
 url = config.get_main_option("sqlalchemy.url") or DatabaseSettings().database_url
 
 
+def _render_item(type_: str, obj, autogen_context):
+    # UTCDateTime хранится как обычный DATETIME; не тянем модуль приложения в миграции.
+    if type_ == "type" and isinstance(obj, UTCDateTime):
+        return "sa.DateTime()"
+    return False
+
+
 def _configure(**kwargs) -> None:
-    context.configure(target_metadata=target_metadata, render_as_batch=True, **kwargs)
+    context.configure(
+        target_metadata=target_metadata,
+        render_as_batch=True,
+        render_item=_render_item,
+        **kwargs,
+    )
 
 
 def run_migrations_offline() -> None:

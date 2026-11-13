@@ -11,6 +11,9 @@ BOT_COMMANDS = [
     BotCommand(command="find", description="Поиск по заметкам"),
     BotCommand(command="edit", description="Изменить заметку: /edit 12 текст"),
     BotCommand(command="del", description="Удалить заметку: /del 12"),
+    BotCommand(command="remind", description="Напомнить: /remind завтра в 9 позвонить"),
+    BotCommand(command="reminders", description="Мои напоминания"),
+    BotCommand(command="timezone", description="Часовой пояс"),
     BotCommand(command="help", description="Список команд"),
 ]
 
