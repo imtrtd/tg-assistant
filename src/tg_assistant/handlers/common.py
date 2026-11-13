@@ -1,18 +1,29 @@
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import BotCommand, Message
 
-router = Router(name="common")
+from ..db import User
 
-HELP_TEXT = "Доступные команды:\n/start — начать работу\n/help — список команд"
+BOT_COMMANDS = [
+    BotCommand(command="start", description="Начать работу"),
+    BotCommand(command="help", description="Список команд"),
+]
+
+HELP_TEXT = "Доступные команды:\n" + "\n".join(
+    f"/{c.command} — {c.description.lower()}" for c in BOT_COMMANDS
+)
 
 
-@router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
-    name = message.from_user.first_name if message.from_user else "друг"
-    await message.answer(f"Привет, {name}! Я твой ассистент.\n\n{HELP_TEXT}")
+async def cmd_start(message: Message, user: User) -> None:
+    await message.answer(f"Привет, {user.first_name}! Я твой ассистент.\n\n{HELP_TEXT}")
 
 
-@router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(HELP_TEXT)
+
+
+def create_router() -> Router:
+    router = Router(name="common")
+    router.message.register(cmd_start, CommandStart())
+    router.message.register(cmd_help, Command("help"))
+    return router
