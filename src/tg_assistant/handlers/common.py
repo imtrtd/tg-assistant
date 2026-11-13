@@ -6,11 +6,20 @@ from ..db import User
 
 BOT_COMMANDS = [
     BotCommand(command="start", description="Начать работу"),
+    BotCommand(command="note", description="Сохранить заметку"),
+    BotCommand(command="notes", description="Мои заметки"),
+    BotCommand(command="find", description="Поиск по заметкам"),
+    BotCommand(command="edit", description="Изменить заметку: /edit 12 текст"),
+    BotCommand(command="del", description="Удалить заметку: /del 12"),
     BotCommand(command="help", description="Список команд"),
 ]
 
-HELP_TEXT = "Доступные команды:\n" + "\n".join(
-    f"/{c.command} — {c.description.lower()}" for c in BOT_COMMANDS
+HELP_TEXT = (
+    "Доступные команды:\n"
+    + "\n".join(
+        f"/{c.command} — {c.description[0].lower()}{c.description[1:]}" for c in BOT_COMMANDS
+    )
+    + "\n\nТеги: добавьте #тег в текст заметки и ищите через /find #тег."
 )
 
 

@@ -7,3 +7,4 @@ Telegram-бот на Python 3.11+ и aiogram 3.
 - Схема БД меняется только через миграции: `alembic revision --autogenerate -m "..."`. При запуске бота миграции применяются автоматически.
 - Настройки — только через `config.Settings` (pydantic-settings, `.env`). Секреты не коммитить.
 - Перед коммитом: `ruff format . && ruff check . && pytest`.
+- PR: после зелёного CI сразу мержить (squash), без ожидания ревью.
