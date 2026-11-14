@@ -17,3 +17,19 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t tg-assistant .
+      - name: Миграции применяются внутри образа
+        run: |
+          docker run --rm -e TELEGRAM_BOT_TOKEN=1:fake tg-assistant python -c "
+          from tg_assistant.db import run_migrations
+          run_migrations('sqlite+aiosqlite:////tmp/bot.db')
+          import sqlite3
+          tables = {r[0] for r in sqlite3.connect('/tmp/bot.db').execute('select name from sqlite_master')}
+          assert {'users', 'notes', 'reminders'} <= tables, tables
+          "
+      - run: bash -n deploy/setup-vps.sh deploy/update.sh deploy/backup.sh
