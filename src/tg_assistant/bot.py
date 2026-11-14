@@ -47,7 +47,9 @@ async def _on_startup(
         await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
     me = await bot.get_me()
     logger.info("Bot @%s started", me.username)
-    dispatcher["scheduler_task"] = asyncio.create_task(run_scheduler(bot, session_factory))
+    dispatcher["scheduler_task"] = asyncio.create_task(
+        run_scheduler(bot, session_factory, archive_retention_days=settings.archive_retention_days)
+    )
     if settings.web_enabled:
         app = create_web_app(settings, session_factory, login_tokens)
         dispatcher["web_runner"] = await start_web_server(app, settings.web_host, settings.web_port)

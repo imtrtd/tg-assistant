@@ -6,6 +6,8 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Update
 from aiogram.types import User as TgUser
 
+from .business import is_business_chat_update
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +23,11 @@ class AccessMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        if is_business_chat_update(event):
+            # Доступ проверяет обработчик по владельцу подключения. Отвечать здесь нельзя:
+            # ответ ушёл бы собеседнику от имени владельца.
+            return await handler(event, data)
+
         user: TgUser | None = data.get("event_from_user")
         if user is not None and user.id in self.allowed_user_ids:
             return await handler(event, data)

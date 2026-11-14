@@ -14,7 +14,9 @@ ERROR_TEXT = "Что-то пошло не так. Попробуйте ещё р
 ALERT_INTERVAL = 60.0  # не чаще раза в минуту, чтобы при сбое не завалить чат админа
 TRACE_LIMIT = 2500  # после экранирования; плюс заголовок — с запасом меньше 4096
 
-_last_alert = 0.0
+# None — оповещений ещё не было. Не 0.0: monotonic() считает от загрузки системы,
+# и сразу после перезагрузки сервера первое оповещение было бы ошибочно подавлено.
+_last_alert: float | None = None
 
 
 def format_alert(event: ErrorEvent) -> str:
@@ -38,7 +40,7 @@ def format_alert(event: ErrorEvent) -> str:
 async def notify_admins(bot: Bot, admin_ids, event: ErrorEvent) -> None:
     global _last_alert
     now = time.monotonic()
-    if not admin_ids or now - _last_alert < ALERT_INTERVAL:
+    if not admin_ids or (_last_alert is not None and now - _last_alert < ALERT_INTERVAL):
         return
     _last_alert = now
     text = format_alert(event)

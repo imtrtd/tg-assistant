@@ -26,6 +26,8 @@ async def test_denied_user_gets_own_id_and_handler_skipped():
     update = MagicMock()
     update.__class__ = Update
     update.callback_query = None
+    update.business_message = update.edited_business_message = None
+    update.deleted_business_messages = None
     update.message.answer = AsyncMock()
     middleware = AccessMiddleware({42})
 
@@ -41,3 +43,19 @@ async def test_update_without_user_is_dropped():
     await AccessMiddleware({42})(handler, MagicMock(), {})
 
     handler.assert_not_awaited()
+
+
+async def test_business_message_from_stranger_passes_without_reply():
+    """Собеседник владельца — не пользователь бота: ни отказа, ни ответа ему."""
+    handler = AsyncMock(return_value="ok")
+    update = MagicMock()
+    update.__class__ = Update
+    update.message = None
+    update.message_answer = AsyncMock()
+    update.business_message = MagicMock()
+    update.edited_business_message = update.deleted_business_messages = None
+
+    result = await AccessMiddleware({42})(handler, update, {"event_from_user": tg_user(7)})
+
+    assert result == "ok"
+    handler.assert_awaited_once()

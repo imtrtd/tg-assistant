@@ -24,6 +24,8 @@ class Settings(DatabaseSettings):
     admin_ids: Annotated[frozenset[int], NoDecode] = frozenset()
     default_timezone: str = "Europe/Moscow"
     log_level: str = "INFO"
+    # Сколько дней хранить архив чатов (Telegram Business). 0 — бессрочно.
+    archive_retention_days: int = 0
     # Публичный адрес веб-интерфейса. Пусто — веб-интерфейс выключен.
     # https://... — работает и мини-приложение в Telegram; http://localhost:8080 — только браузер.
     web_app_url: str = ""

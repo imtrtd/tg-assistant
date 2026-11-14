@@ -15,6 +15,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..db import Reminder
+from ..db.archive import purge_older_than
 from ..db.digest import build_digest, due_digests, next_digest_at
 from ..db.reminders import due_reminders
 from .keyboards import fired_keyboard
@@ -93,14 +94,28 @@ async def fire_digests(
     return sent
 
 
+PURGE_INTERVAL = 3600.0
+
+
 async def run_scheduler(
-    bot: Bot, session_factory: async_sessionmaker[AsyncSession], interval: float = POLL_INTERVAL
+    bot: Bot,
+    session_factory: async_sessionmaker[AsyncSession],
+    interval: float = POLL_INTERVAL,
+    archive_retention_days: int = 0,
 ) -> None:
     logger.info("Reminder scheduler started (every %.0fs)", interval)
+    last_purge = 0.0
+    loop = asyncio.get_running_loop()
     while True:
         try:
             await fire_due(bot, session_factory)
             await fire_digests(bot, session_factory)
+            if archive_retention_days > 0 and loop.time() - last_purge >= PURGE_INTERVAL:
+                last_purge = loop.time()
+                async with session_factory() as session:
+                    removed = await purge_older_than(session, archive_retention_days)
+                if removed:
+                    logger.info("Archive retention: removed %s old messages", removed)
         except Exception:
             logger.exception("Reminder scheduler iteration failed")
         await asyncio.sleep(interval)

@@ -267,7 +267,8 @@ async def test_admin_is_notified_about_errors_once_per_interval(bot, session_fac
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "42:TEST")
     monkeypatch.setenv("ALLOWED_USER_IDS", str(ALLOWED_ID))
     monkeypatch.setenv("ADMIN_IDS", "777")
-    monkeypatch.setattr(errors, "_last_alert", 0.0)
+    monkeypatch.setattr(errors, "_last_alert", None)
+    monkeypatch.setattr(errors.time, "monotonic", lambda: 5.0)  # как сразу после загрузки
     monkeypatch.setattr(common, "HELP_TEXT", None)  # answer(None) -> ошибка в хендлере
     dp = create_dispatcher(Settings(_env_file=None), session_factory)
 
