@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import Reminder, User
 from ..db import reminders as repo
+from ..db.digest import set_digest
 from ..reminders.format import format_repeat, format_when, parse_timezone
 from ..reminders.keyboards import RemCb
 from ..reminders.timeparse import parse_reminder
@@ -89,6 +90,8 @@ async def cmd_timezone(message: Message, command: CommandObject, session: AsyncS
         )
         return
     user.timezone = tz
+    if user.digest_time:
+        set_digest(user, user.digest_time)
     await session.commit()
     await message.answer(
         f"Часовой пояс: <b>{tz}</b>, сейчас {_now(user):%H:%M}.", parse_mode="HTML"

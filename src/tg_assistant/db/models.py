@@ -55,6 +55,9 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(128))
     timezone: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Утренняя сводка: время «ЧЧ:ММ» в поясе пользователя (None — выключена) и момент следующей.
+    digest_time: Mapped[str | None] = mapped_column(String(5))
+    digest_next_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
 
 
 class Note(Base):

@@ -15,6 +15,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..db import Reminder
+from ..db.digest import build_digest, due_digests, next_digest_at
 from ..db.reminders import due_reminders
 from .keyboards import fired_keyboard
 from .timeparse import next_occurrence
@@ -66,6 +67,32 @@ async def fire_due(
     return sent
 
 
+async def fire_digests(
+    bot: Bot, session_factory: async_sessionmaker[AsyncSession], now: datetime | None = None
+) -> int:
+    """Отправить утренние сводки, время которых наступило. Возвращает число отправленных."""
+    now = now or datetime.now(UTC)
+    sent = 0
+    async with session_factory() as session:
+        for user in await due_digests(session, now):
+            try:
+                text = await build_digest(session, user, now)
+                await bot.send_message(user.id, text, parse_mode="HTML")
+            except TelegramForbiddenError:
+                logger.info("User %s blocked the bot, disabling digest", user.id)
+                user.digest_time = None
+                user.digest_next_at = None
+            except TelegramAPIError:
+                logger.exception("Failed to send digest to %s, will retry", user.id)
+                continue
+            else:
+                sent += 1
+                # от now — чтобы после простоя не слать пропущенные сводки пачкой
+                user.digest_next_at = next_digest_at(user.digest_time, user.timezone, now)
+            await session.commit()
+    return sent
+
+
 async def run_scheduler(
     bot: Bot, session_factory: async_sessionmaker[AsyncSession], interval: float = POLL_INTERVAL
 ) -> None:
@@ -73,6 +100,7 @@ async def run_scheduler(
     while True:
         try:
             await fire_due(bot, session_factory)
+            await fire_digests(bot, session_factory)
         except Exception:
             logger.exception("Reminder scheduler iteration failed")
         await asyncio.sleep(interval)

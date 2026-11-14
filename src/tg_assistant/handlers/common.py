@@ -14,6 +14,8 @@ BOT_COMMANDS = [
     BotCommand(command="remind", description="Напомнить: /remind завтра в 9 позвонить"),
     BotCommand(command="reminders", description="Мои напоминания"),
     BotCommand(command="timezone", description="Часовой пояс"),
+    BotCommand(command="digest", description="Утренняя сводка: /digest 8:00 или off"),
+    BotCommand(command="export", description="Выгрузить заметки файлом"),
     BotCommand(command="app", description="Открыть приложение"),
     BotCommand(command="web", description="Ссылка для входа в браузере"),
     BotCommand(command="help", description="Список команд"),
@@ -25,6 +27,8 @@ HELP_TEXT = (
         f"/{c.command} — {c.description[0].lower()}{c.description[1:]}" for c in BOT_COMMANDS
     )
     + "\n\nТеги: добавьте #тег в текст заметки и ищите через /find #тег."
+    + "\nМожно просто написать или переслать сообщение — бот предложит сохранить его"
+    " в заметки или поставить напоминание."
 )
 
 

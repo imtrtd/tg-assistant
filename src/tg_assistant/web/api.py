@@ -7,7 +7,8 @@ from aiohttp import web
 from ..db import Note, Reminder, User
 from ..db import notes as notes_repo
 from ..db import reminders as reminders_repo
-from ..reminders.format import format_repeat, format_when
+from ..db.digest import parse_digest_time, set_digest
+from ..reminders.format import format_repeat, format_when, parse_timezone
 from ..reminders.timeparse import parse_reminder
 from .auth import SESSION_COOKIE, SESSION_TTL
 from .keys import DB, LOGIN_TOKENS, SETTINGS, SIGNER, USER
@@ -83,6 +84,7 @@ def _me(user: User) -> dict:
         "first_name": user.first_name,
         "timezone": user.timezone,
         "local_time": f"{now:%H:%M}",
+        "digest_time": user.digest_time,
     }
 
 
@@ -119,6 +121,29 @@ async def logout(request: web.Request) -> web.Response:
 
 async def me(request: web.Request) -> web.Response:
     return web.json_response(_me(request[USER]))
+
+
+async def update_settings(request: web.Request) -> web.Response:
+    """Изменить часовой пояс и/или время утренней сводки (null — выключить)."""
+    data = await _body(request)
+    user = request[USER]
+    if "timezone" in data:
+        tz = parse_timezone(data["timezone"]) if isinstance(data["timezone"], str) else None
+        if tz is None:
+            return _error(400, "Не знаю такой часовой пояс. Пример: Europe/Moscow или +3")
+        user.timezone = tz
+    digest_time = user.digest_time
+    if "digest_time" in data:
+        value = data["digest_time"]
+        if value is None or value == "":
+            digest_time = None
+        elif isinstance(value, str) and (parsed := parse_digest_time(value)):
+            digest_time = parsed
+        else:
+            return _error(400, "Время сводки в формате ЧЧ:ММ, например 08:00")
+    set_digest(user, digest_time)
+    await request[DB].commit()
+    return web.json_response(_me(user))
 
 
 # --- заметки ---------------------------------------------------------------
@@ -195,6 +220,7 @@ def setup_routes(app: web.Application) -> None:
     r.add_post("/api/login", login)
     r.add_post("/api/logout", logout)
     r.add_get("/api/me", me)
+    r.add_put("/api/settings", update_settings)
     r.add_get("/api/notes", list_notes)
     r.add_post("/api/notes", create_note)
     r.add_put(r"/api/notes/{id:\d+}", update_note)
