@@ -10,3 +10,4 @@ Telegram-бот на Python 3.11+ и aiogram 3.
 - Перед коммитом: `ruff format . && ruff check . && pytest`.
 - PR: после зелёного CI сразу мержить (squash), без ожидания ревью.
 - Деплой: Docker (`Dockerfile`, `docker-compose.yml`), скрипты в `deploy/`, инструкция в `docs/deploy.md`. Контейнер работает от uid 1000, база — в томе `data/`.
+- Веб-интерфейс (`web/`): сервер aiohttp в том же процессе, включается настройкой `WEB_APP_URL`. Вход — initData мини-приложения (`Authorization: tma ...`) или cookie после одноразовой ссылки из `/web`. Страница в `web/static/` без сборки; действует CSP: никаких inline-скриптов и стилей, пользовательский текст вставлять только через `textContent`.

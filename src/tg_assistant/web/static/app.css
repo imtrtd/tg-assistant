@@ -1,0 +1,796 @@
+/* Цвета: внутри Telegram берём тему клиента, в браузере — свою светлую или тёмную. */
+:root {
+  --fb-bg: #f2f3f7;
+  --fb-surface: #ffffff;
+  --fb-text: #14161c;
+  --fb-muted: #7a8091;
+  --fb-accent: #4f6bff;
+  --fb-on-accent: #ffffff;
+  --fb-danger: #e5484d;
+  --shadow: 0 1px 2px rgba(20, 22, 28, 0.04), 0 6px 20px rgba(20, 22, 28, 0.05);
+
+  --bg: var(--tg-theme-secondary-bg-color, var(--fb-bg));
+  --surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--fb-surface)));
+  --text: var(--tg-theme-text-color, var(--fb-text));
+  --muted: var(--tg-theme-hint-color, var(--fb-muted));
+  --accent: var(--tg-theme-button-color, var(--fb-accent));
+  --on-accent: var(--tg-theme-button-text-color, var(--fb-on-accent));
+  --danger: var(--tg-theme-destructive-text-color, var(--fb-danger));
+  --line: rgba(128, 134, 150, 0.2);
+  --field: rgba(128, 134, 150, 0.12);
+  --accent-soft: rgba(79, 107, 255, 0.12);
+  --danger-soft: rgba(229, 72, 77, 0.12);
+  --radius: 16px;
+  --radius-sm: 11px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fb-bg: #0e1014;
+    --fb-surface: #181b22;
+    --fb-text: #eef0f5;
+    --fb-muted: #8c93a5;
+    --fb-accent: #7289ff;
+    --fb-danger: #ff6b6f;
+    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --accent-soft: color-mix(in srgb, var(--accent) 13%, transparent);
+    --danger-soft: color-mix(in srgb, var(--danger) 13%, transparent);
+    --line: color-mix(in srgb, var(--text) 11%, transparent);
+    --field: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+code {
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* --- каркас --------------------------------------------------------------- */
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 14px 16px calc(28px + env(safe-area-inset-bottom));
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 2px 14px;
+}
+
+.avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--on-accent);
+  background: var(--accent);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.12));
+}
+
+.topbar-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar p {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+}
+
+.icon-btn {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+.icon-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* --- вкладки -------------------------------------------------------------- */
+
+.tabs {
+  position: sticky;
+  top: 8px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  background: none;
+  padding: 9px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--accent);
+}
+
+.tab-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.tabs[data-active="reminders"] .tab-thumb {
+  transform: translateX(100%);
+}
+
+.count {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 600;
+  background: var(--line);
+  color: inherit;
+  vertical-align: 1px;
+}
+
+.count:empty {
+  display: none;
+}
+
+.panel-title {
+  display: none;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panels[data-active="notes"] #panel-reminders,
+.panels[data-active="reminders"] #panel-notes {
+  display: none;
+}
+
+/* --- поле ввода ----------------------------------------------------------- */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer textarea,
+.composer input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  resize: none;
+  padding: 8px 0;
+  max-height: 40vh;
+  line-height: 1.4;
+}
+
+.composer ::placeholder,
+.search ::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.btn {
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 9px 15px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  transition: opacity 0.15s, transform 0.1s, background-color 0.15s;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn.ghost {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.btn.plain {
+  background: none;
+  color: var(--muted);
+}
+
+.more {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--field);
+  color: var(--muted);
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.search-icon {
+  display: grid;
+}
+
+.search svg {
+  width: 17px;
+  height: 17px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  padding: 9px 0;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.search input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 6px 12px;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.chip:hover,
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* --- списки --------------------------------------------------------------- */
+
+.list {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 8px 4px 14px;
+}
+
+/* Появляются плавно только новые карточки, а не весь список при каждом обновлении. */
+.card.enter {
+  animation: rise 0.25s ease-out both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.card-text {
+  margin: 0;
+  padding-right: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.card-text a {
+  color: var(--tg-theme-link-color, var(--accent));
+  text-decoration: none;
+}
+
+.card-text a:hover {
+  text-decoration: underline;
+}
+
+.tag {
+  border: 0;
+  padding: 0 1px;
+  background: none;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tag:hover {
+  text-decoration: underline;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  min-height: 34px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card-foot .spacer {
+  flex: 1;
+}
+
+.act {
+  display: grid;
+  place-items: center;
+  height: 34px;
+  min-width: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.act svg {
+  width: 17px;
+  height: 17px;
+}
+
+.act:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+.act.confirm,
+.act.confirm:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.card.editing {
+  border: 1.5px solid var(--accent);
+  padding: 10.5px 6.5px 6.5px 12.5px;
+}
+
+.card.editing .card-foot {
+  margin-top: 8px;
+  gap: 6px;
+}
+
+.card textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  resize: none;
+  padding: 0 8px 0 0;
+  line-height: 1.45;
+}
+
+.card.leaving {
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 0.18s, transform 0.18s;
+}
+
+/* напоминания */
+
+.day {
+  margin: 8px 4px -2px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.day:first-child {
+  margin-top: 0;
+}
+
+.reminder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px 10px 14px;
+}
+
+.time {
+  flex: none;
+  min-width: 58px;
+  padding: 6px 0;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.reminder-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.repeat svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* пусто / загрузка */
+
+.empty {
+  padding: 34px 20px 30px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty svg {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 10px;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.empty b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.empty span {
+  font-size: 14.5px;
+}
+
+.skeleton {
+  height: 76px;
+  border-radius: var(--radius);
+  background: linear-gradient(100deg, var(--line) 30%, transparent 50%, var(--line) 70%) 0 0 / 300%
+    100%;
+  animation: shimmer 1.3s linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -150% 0;
+  }
+}
+
+.footer {
+  margin-top: 26px;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* --- вход, заставка, уведомления ------------------------------------------ */
+
+.gate,
+.splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.gate-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 30px 26px 26px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.gate-logo svg {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+}
+
+.gate-card h1 {
+  margin: 14px 0 6px;
+  font-size: 21px;
+  letter-spacing: -0.01em;
+}
+
+.gate-card > p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.steps {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  text-align: left;
+  display: grid;
+  gap: 10px;
+}
+
+.steps li {
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+}
+
+.steps li::before {
+  content: counter(step);
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 20;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 11px 16px;
+  border-radius: 14px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast.error {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* --- широкий экран: два столбца ------------------------------------------- */
+
+@media (min-width: 900px) {
+  .app {
+    max-width: 1080px;
+    padding: 28px 28px 40px;
+  }
+
+  .topbar {
+    padding-bottom: 22px;
+  }
+
+  .tabs {
+    display: none;
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+
+  .panels[data-active] .panel {
+    display: block !important;
+  }
+
+  .panel-title {
+    display: block;
+  }
+
+  .chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

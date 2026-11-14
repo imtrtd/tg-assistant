@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>Ассистент</title>
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app" class="app" hidden>
+  <header class="topbar">
+    <div class="avatar" id="avatar" aria-hidden="true"></div>
+    <div class="topbar-text">
+      <h1 id="greeting">Ассистент</h1>
+      <p id="today" class="muted"></p>
+    </div>
+    <button id="logout" class="icon-btn" type="button" aria-label="Выйти" title="Выйти" hidden></button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Разделы">
+    <button class="tab" role="tab" id="tab-notes" data-tab="notes" aria-controls="panel-notes" aria-selected="true">
+      Заметки <span class="count" id="count-notes"></span>
+    </button>
+    <button class="tab" role="tab" id="tab-reminders" data-tab="reminders" aria-controls="panel-reminders" aria-selected="false">
+      Напоминания <span class="count" id="count-reminders"></span>
+    </button>
+    <span class="tab-thumb" aria-hidden="true"></span>
+  </nav>
+
+  <main class="panels" data-active="notes">
+    <section class="panel" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes">
+      <h2 class="panel-title">Заметки</h2>
+      <form class="composer" id="note-form">
+        <textarea id="note-input" rows="1" maxlength="4000" placeholder="Новая заметка… #тег" aria-label="Текст заметки"></textarea>
+        <button class="btn primary" type="submit" id="note-submit" disabled>Сохранить</button>
+      </form>
+      <label class="search">
+        <span class="search-icon" aria-hidden="true"></span>
+        <input id="search" type="search" placeholder="Поиск по заметкам" autocomplete="off" aria-label="Поиск по заметкам">
+      </label>
+      <div id="notes" class="list" aria-live="polite"></div>
+      <button class="btn ghost more" id="more" type="button" hidden>Показать ещё</button>
+    </section>
+
+    <section class="panel" id="panel-reminders" role="tabpanel" aria-labelledby="tab-reminders">
+      <h2 class="panel-title">Напоминания</h2>
+      <form class="composer" id="reminder-form">
+        <input id="reminder-input" type="text" maxlength="4000" placeholder="завтра в 9 позвонить маме" autocomplete="off" aria-label="Когда и о чём напомнить">
+        <button class="btn primary" type="submit" id="reminder-submit" disabled>Напомнить</button>
+      </form>
+      <div class="chips" id="chips" aria-label="Быстрый выбор времени"></div>
+      <div id="reminders" class="list" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="footer muted" id="footer"></footer>
+</div>
+
+<div id="gate" class="gate" hidden>
+  <div class="gate-card">
+    <div class="gate-logo" aria-hidden="true"></div>
+    <h1 id="gate-title">Вход через Telegram</h1>
+    <p id="gate-text" class="muted"></p>
+    <ol id="gate-steps" class="steps">
+      <li>Откройте чат с ботом в Telegram</li>
+      <li>Отправьте команду <code>/web</code></li>
+      <li>Перейдите по ссылке из ответа</li>
+    </ol>
+  </div>
+</div>
+
+<div id="splash" class="splash" aria-label="Загрузка"><span class="spinner"></span></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

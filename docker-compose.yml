@@ -5,8 +5,27 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+    ports:
+      # Веб-интерфейс (если задан WEB_APP_URL) — только с самого сервера; наружу его отдаёт caddy.
+      - "127.0.0.1:8080:8080"
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+  # HTTPS для веб-интерфейса и мини-приложения. Включается строкой COMPOSE_PROFILES=web в .env.
+  # Нужен домен, направленный на сервер (WEB_DOMAIN в .env); сертификат Caddy получает сам.
+  caddy:
+    image: caddy:2-alpine
+    profiles: [web]
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${WEB_DOMAIN:-localhost} --to bot:8080
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+
+volumes:
+  caddy_data:
