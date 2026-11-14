@@ -9,3 +9,4 @@ Telegram-бот на Python 3.11+ и aiogram 3.
 - Настройки — только через `config.Settings` (pydantic-settings, `.env`). Секреты не коммитить.
 - Перед коммитом: `ruff format . && ruff check . && pytest`.
 - PR: после зелёного CI сразу мержить (squash), без ожидания ревью.
+- Деплой: Docker (`Dockerfile`, `docker-compose.yml`), скрипты в `deploy/`, инструкция в `docs/deploy.md`. Контейнер работает от uid 1000, база — в томе `data/`.
