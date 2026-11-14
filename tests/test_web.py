@@ -4,6 +4,7 @@ import json
 import time
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 import aiohttp
 import pytest
@@ -317,3 +318,35 @@ async def test_reminders_delete_and_isolation(client, session_factory, users):
         assert [r.text for r in await reminders_repo.list_active(session, BORIS, limit=10)] == [
             "чужое"
         ]
+
+
+# --- настройки -------------------------------------------------------------
+
+
+async def test_settings_update_timezone_and_digest(client, session_factory, users):
+    auth = tma(ANYA)
+    me = await (await client.get("/api/me", headers=auth)).json()
+    assert me["digest_time"] is None
+
+    response = await client.put(
+        "/api/settings", json={"timezone": "asia/vladivostok", "digest_time": "7:30"}, headers=auth
+    )
+    body = await response.json()
+    assert response.status == 200
+    assert (body["timezone"], body["digest_time"]) == ("Asia/Vladivostok", "07:30")
+    async with session_factory() as session:
+        user = await session.get(User, ANYA)
+        local = user.digest_next_at.astimezone(ZoneInfo("Asia/Vladivostok"))
+        assert local.strftime("%H:%M") == "07:30"
+
+    off = await client.put("/api/settings", json={"digest_time": None}, headers=auth)
+    assert (await off.json())["digest_time"] is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"timezone": "Mars/Base"}, {"timezone": 3}, {"digest_time": "25:00"}, {"digest_time": 8}],
+)
+async def test_settings_validation(client, users, payload):
+    response = await client.put("/api/settings", json=payload, headers=tma(ANYA))
+    assert response.status == 400

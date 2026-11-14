@@ -17,8 +17,42 @@
       <h1 id="greeting">Ассистент</h1>
       <p id="today" class="muted"></p>
     </div>
+    <button id="settings-btn" class="icon-btn" type="button" aria-label="Настройки" title="Настройки" aria-expanded="false" aria-controls="settings"></button>
     <button id="logout" class="icon-btn" type="button" aria-label="Выйти" title="Выйти" hidden></button>
   </header>
+
+  <section id="settings" class="settings card" hidden aria-labelledby="settings-title">
+    <h2 id="settings-title">Настройки</h2>
+    <form id="settings-form">
+      <label class="field">
+        <span>Часовой пояс</span>
+        <input id="tz-input" list="tz-list" autocomplete="off" spellcheck="false" placeholder="Europe/Moscow или +3">
+        <datalist id="tz-list"></datalist>
+        <button class="link-btn" type="button" id="tz-detect">Определить автоматически</button>
+      </label>
+      <div class="field">
+        <span>Утренняя сводка</span>
+        <div class="row">
+          <label class="switch">
+            <input type="checkbox" id="digest-on">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-label">Присылать план на день</span>
+          </label>
+          <input id="digest-time" type="time" value="08:00" aria-label="Время сводки">
+        </div>
+      </div>
+      <div class="row end">
+        <button class="btn plain" type="button" id="settings-cancel">Отмена</button>
+        <button class="btn primary" type="submit" id="settings-save">Сохранить</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="stats" id="stats" aria-label="Сводка">
+    <div class="stat"><b id="stat-today">–</b><span id="stat-today-label">напоминаний сегодня</span></div>
+    <div class="stat"><b id="stat-next">–</b><span id="stat-next-label">следующее</span></div>
+    <div class="stat"><b id="stat-notes">–</b><span id="stat-notes-label">заметок</span></div>
+  </section>
 
   <nav class="tabs" role="tablist" aria-label="Разделы">
     <button class="tab" role="tab" id="tab-notes" data-tab="notes" aria-controls="panel-notes" aria-selected="true">

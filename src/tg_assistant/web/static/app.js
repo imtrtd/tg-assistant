@@ -31,6 +31,7 @@ function loadTelegram() {
 }
 
 const ICONS = {
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
@@ -43,7 +44,7 @@ const ICONS = {
 
 const CHIPS = ["через час", "сегодня в 18:00", "завтра в 9", "каждый день 8:00", "по будням 9:30"];
 
-const state = { me: null, notes: [], notesTotal: 0, query: "", reminders: [], chip: "" };
+const state = { me: null, notes: [], notesTotal: 0, allNotes: 0, query: "", reminders: [], chip: "" };
 const seen = { notes: new Set(), reminders: new Set() };
 const $ = (id) => document.getElementById(id);
 
@@ -239,6 +240,7 @@ function noteCard(note) {
       removeCard(card, () => {
         state.notes = state.notes.filter((item) => item.id !== note.id);
         state.notesTotal -= 1;
+        state.allNotes = Math.max(0, state.allNotes - 1);
         renderNotes();
       });
     } catch (error) {
@@ -263,6 +265,7 @@ function renderNotes() {
   }
   $("count-notes").textContent = state.query ? "" : state.notesTotal || "";
   $("more").hidden = Boolean(state.query) || state.notes.length >= state.notesTotal;
+  renderStats();
 }
 
 async function loadNotes(append) {
@@ -273,6 +276,7 @@ async function loadNotes(append) {
     if (query !== state.query) return; // пока ждали ответ, запрос изменился
     state.notes = append ? state.notes.concat(data.items) : data.items;
     state.notesTotal = data.total;
+    if (!query) state.allNotes = data.total;
     renderNotes();
   } catch (error) {
     fail(error);
@@ -308,6 +312,7 @@ function reminderCard(reminder) {
       removeCard(card, () => {
         state.reminders = state.reminders.filter((item) => item.id !== reminder.id);
         renderReminders();
+        renderStats();
       });
     } catch (error) {
       fail(error);
@@ -348,10 +353,40 @@ function renderReminders() {
   list.replaceChildren(...nodes);
 }
 
+function plural(n, one, few, many) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+function renderStats() {
+  if (!state.me) return;
+  const today = dayKey(new Date());
+  const todays = state.reminders.filter((r) => dayKey(new Date(r.remind_at)) === today);
+  $("stat-today").textContent = String(todays.length);
+  $("stat-today-label").textContent = `${plural(todays.length, "напоминание", "напоминания", "напоминаний")} сегодня`;
+  $("stat-notes").textContent = String(state.allNotes);
+  $("stat-notes-label").textContent = plural(state.allNotes, "заметка", "заметки", "заметок");
+  const next = state.reminders[0];
+  if (!next) {
+    $("stat-next").textContent = "—";
+    $("stat-next-label").textContent = "следующих нет";
+    return;
+  }
+  const date = new Date(next.remind_at);
+  const time = formatter({ hour: "2-digit", minute: "2-digit" }).format(date);
+  const label = dayLabel(date);
+  $("stat-next").textContent = time;
+  $("stat-next-label").textContent = label === "Сегодня" ? "следующее, сегодня" : `следующее, ${label.toLowerCase()}`;
+}
+
 async function loadReminders() {
   try {
     state.reminders = (await api("GET", "/api/reminders")).items;
     renderReminders();
+    renderStats();
   } catch (error) {
     fail(error);
   }
@@ -427,10 +462,67 @@ function renderHeader() {
   $("greeting").textContent = `Привет, ${name}`;
   const today = formatter({ weekday: "long", day: "numeric", month: "long" }).format(new Date());
   $("today").textContent = today.charAt(0).toUpperCase() + today.slice(1);
-  $("footer").textContent = `Часовой пояс: ${timezone} · изменить можно в боте командой /timezone`;
+  const digest = state.me.digest_time ? `сводка в ${state.me.digest_time}` : "сводка выключена";
+  $("footer").textContent = `Часовой пояс: ${timezone} · ${digest}`;
+}
+
+const COMMON_ZONES = [
+  "Europe/Kaliningrad", "Europe/Moscow", "Europe/Samara", "Asia/Yekaterinburg", "Asia/Omsk",
+  "Asia/Novosibirsk", "Asia/Krasnoyarsk", "Asia/Irkutsk", "Asia/Yakutsk", "Asia/Vladivostok",
+  "Asia/Magadan", "Asia/Kamchatka", "Europe/Kyiv", "Europe/Minsk", "Asia/Almaty", "Asia/Tashkent",
+  "Asia/Tbilisi", "Asia/Yerevan", "Europe/Berlin", "Europe/London", "UTC",
+];
+
+function toggleSettings(open) {
+  const panel = $("settings");
+  const show = open ?? panel.hidden;
+  panel.hidden = !show;
+  $("settings-btn").setAttribute("aria-expanded", String(show));
+  if (!show) return;
+  $("tz-input").value = state.me.timezone;
+  $("digest-on").checked = Boolean(state.me.digest_time);
+  $("digest-time").value = state.me.digest_time || "08:00";
+  $("digest-time").disabled = !state.me.digest_time;
+  $("tz-input").focus();
+}
+
+async function saveSettings(event) {
+  event.preventDefault();
+  const body = {
+    timezone: $("tz-input").value.trim(),
+    digest_time: $("digest-on").checked ? $("digest-time").value : null,
+  };
+  $("settings-save").disabled = true;
+  try {
+    const tzChanged = body.timezone !== state.me.timezone;
+    state.me = await api("PUT", "/api/settings", body);
+    renderHeader();
+    toggleSettings(false);
+    toast("Настройки сохранены");
+    if (tzChanged) await loadReminders(); // время напоминаний показывается в новом поясе
+  } catch (error) {
+    fail(error);
+  } finally {
+    $("settings-save").disabled = false;
+  }
 }
 
 function bindEvents() {
+  $("tz-list").replaceChildren(...COMMON_ZONES.map((zone) => el("option", { value: zone })));
+  $("settings-btn").addEventListener("click", () => toggleSettings());
+  $("settings-cancel").addEventListener("click", () => toggleSettings(false));
+  $("settings-form").addEventListener("submit", saveSettings);
+  $("digest-on").addEventListener("change", (event) => {
+    $("digest-time").disabled = !event.target.checked;
+  });
+  $("tz-detect").addEventListener("click", () => {
+    try {
+      $("tz-input").value = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch {
+      toast("Не удалось определить часовой пояс", true);
+    }
+  });
+
   for (const tab of document.querySelectorAll(".tab")) {
     tab.addEventListener("click", () => selectTab(tab.dataset.tab));
   }
@@ -530,6 +622,7 @@ async function start() {
   document.querySelector(".search-icon").innerHTML = ICONS.search;
   document.querySelector(".gate-logo").innerHTML = ICONS.logo;
   $("logout").innerHTML = ICONS.logout;
+  $("settings-btn").innerHTML = ICONS.gear;
 
   await loadTelegram();
   if (inTelegram) {

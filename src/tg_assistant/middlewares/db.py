@@ -7,6 +7,7 @@ from aiogram.types import User as TgUser
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..db.users import get_or_create_user
+from .business import is_business_chat_update
 
 
 class DbMiddleware(BaseMiddleware):
@@ -25,6 +26,6 @@ class DbMiddleware(BaseMiddleware):
         async with self.session_factory() as session:
             data["session"] = session
             tg_user: TgUser | None = data.get("event_from_user")
-            if tg_user is not None:
+            if tg_user is not None and not is_business_chat_update(event):
                 data["user"] = await get_or_create_user(session, tg_user, self.default_tz)
             return await handler(event, data)

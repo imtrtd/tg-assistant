@@ -12,4 +12,14 @@ def test_migrations_create_schema(tmp_path):
         tables = {
             row[0] for row in conn.execute("select name from sqlite_master where type='table'")
         }
-    assert {"users", "notes", "reminders", "alembic_version"} <= tables
+    assert {
+        "users",
+        "notes",
+        "reminders",
+        "archived_messages",
+        "message_edits",
+        "business_connections",
+    } <= tables
+    with sqlite3.connect(db_path) as conn:
+        columns = {row[1] for row in conn.execute("pragma table_info(users)")}
+    assert {"digest_time", "digest_next_at"} <= columns

@@ -20,8 +20,12 @@ class Settings(DatabaseSettings):
 
     telegram_bot_token: SecretStr
     allowed_user_ids: Annotated[frozenset[int], NoDecode] = frozenset()
+    # Кому присылать сообщения о необработанных ошибках. Пусто — никому.
+    admin_ids: Annotated[frozenset[int], NoDecode] = frozenset()
     default_timezone: str = "Europe/Moscow"
     log_level: str = "INFO"
+    # Сколько дней хранить архив чатов (Telegram Business). 0 — бессрочно.
+    archive_retention_days: int = 0
     # Публичный адрес веб-интерфейса. Пусто — веб-интерфейс выключен.
     # https://... — работает и мини-приложение в Telegram; http://localhost:8080 — только браузер.
     web_app_url: str = ""
@@ -45,7 +49,7 @@ class Settings(DatabaseSettings):
         """Telegram открывает мини-приложения только по HTTPS."""
         return self.web_app_url.startswith("https://")
 
-    @field_validator("allowed_user_ids", mode="before")
+    @field_validator("allowed_user_ids", "admin_ids", mode="before")
     @classmethod
     def _parse_ids(cls, value: Any) -> Any:
         if isinstance(value, str):

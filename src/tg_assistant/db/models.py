@@ -9,7 +9,9 @@ from sqlalchemy import (
     MetaData,
     String,
     Text,
+    UniqueConstraint,
     func,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -55,6 +57,12 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(128))
     timezone: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Утренняя сводка: время «ЧЧ:ММ» в поясе пользователя (None — выключена) и момент следующей.
+    digest_time: Mapped[str | None] = mapped_column(String(5))
+    digest_next_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
+    # Архив чатов (Telegram Business): присылать ли изменённые и удалённые сообщения.
+    notify_edits: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    notify_deletes: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Note(Base):
@@ -85,3 +93,53 @@ class Reminder(Base):
     repeat: Mapped[str | None] = mapped_column(String(16))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BusinessConnection(Base):
+    """Подключение бота к аккаунту пользователя через Telegram Business."""
+
+    __tablename__ = "business_connections"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    owner_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    is_enabled: Mapped[bool] = mapped_column(Boolean)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ArchivedMessage(Base):
+    """Сообщение из личного чата владельца, полученное через Telegram Business."""
+
+    __tablename__ = "archived_messages"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "chat_id", "message_id"),
+        Index("ix_archived_messages_owner_chat_sent", "owner_id", "chat_id", "sent_at"),
+        Index("ix_archived_messages_owner_deleted", "owner_id", "deleted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int] = mapped_column(BigInteger)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    chat_title: Mapped[str] = mapped_column(String(256))
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    sender_id: Mapped[int | None] = mapped_column(BigInteger)
+    sender_name: Mapped[str] = mapped_column(String(256))
+    outgoing: Mapped[bool] = mapped_column(Boolean)
+    text: Mapped[str | None] = mapped_column(Text)
+    media_type: Mapped[str | None] = mapped_column(String(32))
+    file_id: Mapped[str | None] = mapped_column(String(256))
+    sent_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    edited_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class MessageEdit(Base):
+    """Прежняя версия текста сообщения до правки."""
+
+    __tablename__ = "message_edits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(
+        ForeignKey("archived_messages.id", ondelete="CASCADE"), index=True
+    )
+    text: Mapped[str | None] = mapped_column(Text)
+    replaced_at: Mapped[datetime] = mapped_column(UTCDateTime)
