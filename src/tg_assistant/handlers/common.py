@@ -14,6 +14,8 @@ BOT_COMMANDS = [
     BotCommand(command="remind", description="Напомнить: /remind завтра в 9 позвонить"),
     BotCommand(command="reminders", description="Мои напоминания"),
     BotCommand(command="timezone", description="Часовой пояс"),
+    BotCommand(command="app", description="Открыть приложение"),
+    BotCommand(command="web", description="Ссылка для входа в браузере"),
     BotCommand(command="help", description="Список команд"),
 ]
 

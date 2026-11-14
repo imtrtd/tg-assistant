@@ -22,6 +22,28 @@ class Settings(DatabaseSettings):
     allowed_user_ids: Annotated[frozenset[int], NoDecode] = frozenset()
     default_timezone: str = "Europe/Moscow"
     log_level: str = "INFO"
+    # Публичный адрес веб-интерфейса. Пусто — веб-интерфейс выключен.
+    # https://... — работает и мини-приложение в Telegram; http://localhost:8080 — только браузер.
+    web_app_url: str = ""
+    web_host: str = "0.0.0.0"
+    web_port: int = 8080
+
+    @field_validator("web_app_url")
+    @classmethod
+    def _check_web_url(cls, value: str) -> str:
+        value = value.strip().rstrip("/")
+        if value and not value.startswith(("http://", "https://")):
+            raise ValueError("WEB_APP_URL must start with http:// or https://")
+        return value
+
+    @property
+    def web_enabled(self) -> bool:
+        return bool(self.web_app_url)
+
+    @property
+    def mini_app_enabled(self) -> bool:
+        """Telegram открывает мини-приложения только по HTTPS."""
+        return self.web_app_url.startswith("https://")
 
     @field_validator("allowed_user_ids", mode="before")
     @classmethod

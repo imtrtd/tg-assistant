@@ -31,5 +31,7 @@ jobs:
           import sqlite3
           tables = {r[0] for r in sqlite3.connect('/tmp/bot.db').execute('select name from sqlite_master')}
           assert {'users', 'notes', 'reminders'} <= tables, tables
+          from tg_assistant.web.app import STATIC_DIR
+          assert (STATIC_DIR / 'index.html').is_file() and (STATIC_DIR / 'app.js').is_file()
           "
       - run: bash -n deploy/setup-vps.sh deploy/update.sh deploy/backup.sh
