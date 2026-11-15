@@ -80,7 +80,7 @@ async def test_index_and_static_are_served_with_csp(client):
     assert page.status == 200 and "text/html" in page.headers["Content-Type"]
     assert "script-src 'self' https://telegram.org" in page.headers["Content-Security-Policy"]
     assert 'src="/static/app.js"' in await page.text()
-    for name in ("app.js", "app.css", "icon.svg"):
+    for name in ("app.js", "app.css", "icon.svg", "icon-192.png", "manifest.json"):
         assert (await client.get(f"/static/{name}")).status == 200
 
 

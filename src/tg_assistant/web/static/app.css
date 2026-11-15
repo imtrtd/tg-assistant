@@ -655,10 +655,11 @@ code {
   text-align: center;
 }
 
-.gate-logo svg {
-  width: 60px;
-  height: 60px;
-  border-radius: 18px;
+.gate-logo img {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  box-shadow: var(--shadow);
 }
 
 .gate-card h1 {

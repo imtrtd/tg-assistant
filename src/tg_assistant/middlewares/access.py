@@ -6,6 +6,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Update
 from aiogram.types import User as TgUser
 
+from ..texts import ACCESS_ALERT, access_denied
 from .business import is_business_chat_update
 
 logger = logging.getLogger(__name__)
@@ -37,10 +38,7 @@ class AccessMiddleware(BaseMiddleware):
         if isinstance(event, Update):
             if event.message is not None:
                 user_id = user.id if user else "?"
-                await event.message.answer(
-                    f"Доступ к боту закрыт.\nВаш Telegram id: <code>{user_id}</code>",
-                    parse_mode="HTML",
-                )
+                await event.message.answer(access_denied(user_id), parse_mode="HTML")
             elif event.callback_query is not None:
-                await event.callback_query.answer("Доступ закрыт", show_alert=True)
+                await event.callback_query.answer(ACCESS_ALERT, show_alert=True)
         return None

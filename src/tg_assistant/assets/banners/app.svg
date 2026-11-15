@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640"><rect width="1280" height="640" fill="#141824"/><circle cx="1100.8" cy="115.19999999999999" r="352.0" fill="#4F62F0" opacity="0.16"/><circle cx="102.4" cy="588.8000000000001" r="243.2" fill="#3949C4" opacity="0.22"/><rect x="760" y="90" width="420" height="460" rx="56" fill="#222A40"/><text x="88" y="250" fill="#FFFFFF" font-family="Inter" font-weight="600" font-size="72">Приложение</text><text x="88" y="318" fill="#A8B0C4" font-family="Inter" font-weight="400" font-size="28">Заметки и напоминания в одном окне</text>
+    <g transform="translate(830 160) scale(3.75)">
+      <rect x="22" y="6" width="36" height="68" rx="8" fill="#222A40" stroke="#4F62F0"
+            stroke-width="3"/>
+      <rect x="30" y="18" width="20" height="28" rx="3" fill="#F5F6FB"/>
+      <circle cx="40" cy="62" r="3" fill="#4F62F0"/>
+    </g>
+    </svg>

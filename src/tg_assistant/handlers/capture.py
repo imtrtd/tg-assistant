@@ -8,7 +8,6 @@
 Роутер подключается последним, чтобы не перехватывать команды и другие обработчики.
 """
 
-import html
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -23,6 +22,14 @@ from ..db import notes as notes_repo
 from ..db import reminders as reminders_repo
 from ..reminders.format import format_repeat, format_when
 from ..reminders.timeparse import parse_reminder
+from ..texts import (
+    CAPTURE_MISSING,
+    CAPTURE_PAST,
+    CAPTURE_PROMPT,
+    captured_forward,
+    captured_note,
+    captured_remind,
+)
 
 
 class CaptureCb(CallbackData, prefix="cap"):
@@ -58,7 +65,7 @@ async def on_text(message: Message, session: AsyncSession, user: User):
         source = _forward_source(message)
         body = f"↪ {source}\n{text}" if source else text
         note = await notes_repo.add_note(session, user.id, body)
-        await message.reply(f"Сохранено в заметки как <b>#{note.id}</b>", parse_mode="HTML")
+        await message.reply(captured_forward(note.id), parse_mode="HTML")
         return
 
     kb = InlineKeyboardBuilder()
@@ -71,7 +78,7 @@ async def on_text(message: Message, session: AsyncSession, user: User):
         )
     kb.button(text="✖", callback_data=CaptureCb(action="cancel"))
     kb.adjust(2 if parsed is None else 3)
-    await message.reply("Что сделать с этим сообщением?", reply_markup=kb.as_markup())
+    await message.reply(CAPTURE_PROMPT, reply_markup=kb.as_markup(), parse_mode="HTML")
 
 
 async def on_choice(
@@ -84,25 +91,24 @@ async def on_choice(
     if callback_data.action == "cancel" or text is None:
         if prompt:
             await prompt.delete()
-        await query.answer("Исходное сообщение не найдено" if text is None else None)
+        await query.answer(CAPTURE_MISSING if text is None else None)
         return
 
     if callback_data.action == "note":
         note = await notes_repo.add_note(session, user.id, text)
-        result = f"📝 Сохранено в заметки как <b>#{note.id}</b>"
+        result = captured_note(note.id)
     else:
         now = datetime.now(ZoneInfo(user.timezone))
         parsed = parse_reminder(text, now)
         if parsed is None:
-            await query.answer("Это время уже прошло", show_alert=True)
+            await query.answer(CAPTURE_PAST, show_alert=True)
             return
         reminder = await reminders_repo.add_reminder(
             session, user.id, parsed.text, parsed.when, parsed.repeat
         )
         when = reminder.remind_at.astimezone(ZoneInfo(user.timezone))
         repeat = format_repeat(reminder.repeat, when)
-        result = f"⏰ Напомню <b>{format_when(when, now)}</b>" + (f" 🔁 {repeat}" if repeat else "")
-        result += f"\n{html.escape(reminder.text)}"
+        result = captured_remind(format_when(when, now), reminder.text, repeat)
 
     if prompt:
         await prompt.edit_text(result, parse_mode="HTML")

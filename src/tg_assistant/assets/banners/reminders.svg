@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640"><rect width="1280" height="640" fill="#141824"/><circle cx="1100.8" cy="115.19999999999999" r="352.0" fill="#4F62F0" opacity="0.16"/><circle cx="102.4" cy="588.8000000000001" r="243.2" fill="#3949C4" opacity="0.22"/><rect x="760" y="90" width="420" height="460" rx="56" fill="#222A40"/><text x="88" y="250" fill="#FFFFFF" font-family="Inter" font-weight="600" font-size="72">Напоминания</text><text x="88" y="318" fill="#A8B0C4" font-family="Inter" font-weight="400" font-size="28">Один раз или с повтором</text>
+    <g transform="translate(830 160) scale(3.75)" fill="none" stroke="#FFFFFF"
+       stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 48V32a24 24 0 0 1 48 0v16l6 8H10z" fill="#2A3350"/>
+      <path d="M32 60a8 8 0 0 0 16 0"/>
+      <path d="M40 10v6"/>
+    </g>
+    </svg>

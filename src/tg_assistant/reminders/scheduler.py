@@ -5,7 +5,6 @@
 """
 
 import asyncio
-import html
 import logging
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
@@ -18,6 +17,7 @@ from ..db import Reminder
 from ..db.archive import purge_older_than
 from ..db.digest import build_digest, due_digests, next_digest_at
 from ..db.reminders import due_reminders
+from ..texts import reminder_fired
 from .keyboards import fired_keyboard
 from .timeparse import next_occurrence
 
@@ -49,7 +49,7 @@ async def fire_due(
             try:
                 await bot.send_message(
                     reminder.user_id,
-                    f"⏰ {html.escape(reminder.text)}",
+                    reminder_fired(reminder.text),
                     reply_markup=fired_keyboard(reminder),
                     parse_mode="HTML",
                 )

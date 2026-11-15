@@ -7,10 +7,10 @@ from aiogram import Bot
 from aiogram.types import ErrorEvent
 
 from ..config import Settings
+from ..texts import ERROR_TEXT, admin_error
 
 logger = logging.getLogger(__name__)
 
-ERROR_TEXT = "Что-то пошло не так. Попробуйте ещё раз чуть позже."
 ALERT_INTERVAL = 60.0  # не чаще раза в минуту, чтобы при сбое не завалить чат админа
 TRACE_LIMIT = 2500  # после экранирования; плюс заголовок — с запасом меньше 4096
 
@@ -30,11 +30,7 @@ def format_alert(event: ErrorEvent) -> str:
         while len(html.escape(raw)) > TRACE_LIMIT:
             raw = raw[len(raw) // 10 :]
         trace = "…" + html.escape(raw)
-    return (
-        f"⚠️ <b>Ошибка в боте</b> (update {event.update.update_id})\n"
-        f"<code>{html.escape(type(exc).__name__)}: {html.escape(str(exc)[:200])}</code>\n\n"
-        f"<pre>{trace}</pre>"
-    )
+    return admin_error(event.update.update_id, type(exc).__name__, str(exc)[:200], trace)
 
 
 async def notify_admins(bot: Bot, admin_ids, event: ErrorEvent) -> None:

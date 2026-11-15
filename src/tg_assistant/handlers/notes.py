@@ -11,6 +11,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import Note, User
 from ..db import notes as repo
+from ..texts import (
+    DEL_USAGE,
+    edit_usage,
+    note_deleted,
+    note_deleted_toast,
+    note_missing,
+    note_saved,
+    note_updated,
+    note_usage,
+    notes_empty,
+    notes_header,
+    search_empty,
+    search_header,
+    search_prompt,
+)
 
 PAGE_SIZE = 5
 PREVIEW_LEN = 200
@@ -32,10 +47,10 @@ def render_page(
     notes: list[Note], total: int, page: int
 ) -> tuple[str, InlineKeyboardMarkup | None]:
     if total == 0:
-        return "Заметок пока нет. Добавьте: /note текст", None
+        return notes_empty(), None
 
     pages = math.ceil(total / PAGE_SIZE)
-    header = f"📝 Заметки ({total}), стр. {page + 1}/{pages}"
+    header = notes_header(total, page + 1, pages)
     text = header + "\n\n" + "\n\n".join(_preview(note) for note in notes)
 
     kb = InlineKeyboardBuilder()
@@ -81,13 +96,10 @@ async def cmd_note(message: Message, command: CommandObject, session: AsyncSessi
         replied = message.reply_to_message
         text = replied.text or replied.caption
     if not text:
-        await message.answer(
-            "Напишите текст заметки после команды: /note купить хлеб\n"
-            "Или ответьте командой /note на сообщение, которое нужно сохранить."
-        )
+        await message.answer(note_usage(), parse_mode="HTML")
         return
     note = await repo.add_note(session, user.id, text.strip())
-    await message.answer(f"Сохранено как <b>#{note.id}</b>", parse_mode="HTML")
+    await message.answer(note_saved(note.id), parse_mode="HTML")
 
 
 async def cmd_notes(message: Message, session: AsyncSession, user: User):
@@ -97,15 +109,13 @@ async def cmd_notes(message: Message, session: AsyncSession, user: User):
 
 async def cmd_find(message: Message, command: CommandObject, session: AsyncSession, user: User):
     if not command.args:
-        await message.answer("Что искать? Например: /find молоко или /find #работа")
+        await message.answer(search_prompt(), parse_mode="HTML")
         return
     found = await repo.search_notes(session, user.id, command.args, limit=SEARCH_LIMIT)
     if not found:
-        await message.answer("Ничего не найдено.")
+        await message.answer(search_empty(command.args), parse_mode="HTML")
         return
-    header = f"🔎 Найдено: {len(found)}"
-    if len(found) == SEARCH_LIMIT:
-        header += f" (показаны первые {SEARCH_LIMIT})"
+    header = search_header(len(found), truncated=len(found) == SEARCH_LIMIT, limit=SEARCH_LIMIT)
     await message.answer(header + "\n\n" + "\n\n".join(map(_preview, found)), parse_mode="HTML")
 
 
@@ -117,24 +127,24 @@ def _parse_id(raw: str | None) -> int | None:
 async def cmd_del(message: Message, command: CommandObject, session: AsyncSession, user: User):
     note_id = _parse_id(command.args)
     if note_id is None:
-        await message.answer("Укажите номер заметки: /del 12")
+        await message.answer(DEL_USAGE, parse_mode="HTML")
         return
     if await repo.delete_note(session, user.id, note_id):
-        await message.answer(f"Заметка #{note_id} удалена.")
+        await message.answer(note_deleted(note_id), parse_mode="HTML")
     else:
-        await message.answer(f"Заметки #{note_id} нет.")
+        await message.answer(note_missing(note_id), parse_mode="HTML")
 
 
 async def cmd_edit(message: Message, command: CommandObject, session: AsyncSession, user: User):
     raw_id, _, text = (command.args or "").partition(" ")
     note_id = _parse_id(raw_id)
     if note_id is None or not text.strip():
-        await message.answer("Формат: /edit 12 новый текст")
+        await message.answer(edit_usage(), parse_mode="HTML")
         return
     if await repo.update_note(session, user.id, note_id, text.strip()):
-        await message.answer(f"Заметка #{note_id} обновлена.")
+        await message.answer(note_updated(note_id), parse_mode="HTML")
     else:
-        await message.answer(f"Заметки #{note_id} нет.")
+        await message.answer(note_missing(note_id), parse_mode="HTML")
 
 
 async def on_page(query: CallbackQuery, callback_data: NotesCb, session: AsyncSession, user: User):
@@ -147,7 +157,7 @@ async def on_delete(
 ):
     deleted = await repo.delete_note(session, user.id, callback_data.note_id)
     await _edit(query, *await _page(session, user, callback_data.page))
-    await query.answer(f"Заметка #{callback_data.note_id} удалена" if deleted else "Уже удалена")
+    await query.answer(note_deleted_toast(callback_data.note_id, deleted=deleted))
 
 
 def create_router() -> Router:

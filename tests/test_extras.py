@@ -269,7 +269,7 @@ async def test_admin_is_notified_about_errors_once_per_interval(bot, session_fac
     monkeypatch.setenv("ADMIN_IDS", "777")
     monkeypatch.setattr(errors, "_last_alert", None)
     monkeypatch.setattr(errors.time, "monotonic", lambda: 5.0)  # как сразу после загрузки
-    monkeypatch.setattr(common, "HELP_TEXT", None)  # answer(None) -> ошибка в хендлере
+    monkeypatch.setattr(common, "HELP_TEXT", None)  # /help падает, админу уходит трассировка
     dp = create_dispatcher(Settings(_env_file=None), session_factory)
 
     await dp.feed_update(bot, update_from(ALLOWED_ID, "/help"))
@@ -278,7 +278,7 @@ async def test_admin_is_notified_about_errors_once_per_interval(bot, session_fac
     to_admin = [m for m in sent_methods(bot, SendMessage) if m.chat_id == 777]
     assert len(to_admin) == 1
     text = to_admin[0].text
-    assert "Ошибка в боте" in text and "ValidationError" in text and "<pre>" in text
+    assert "Ошибка в боте" in text and "TypeError" in text and "<pre>" in text
     assert len(text) < 4096  # лимит Telegram
 
 

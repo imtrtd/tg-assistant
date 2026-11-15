@@ -20,6 +20,14 @@ from ..db import ArchivedMessage, User
 from ..db import archive as repo
 from ..db.archive import MEDIA_LABELS
 from ..db.users import get_or_create_user
+from ..texts import (
+    BUSINESS_OFF,
+    BUSINESS_ON,
+    deleted_batch_header,
+    deleted_batch_more,
+    deleted_batch_unknown,
+    message_edited,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,16 +100,7 @@ async def on_connection(
         return
     await repo.save_connection(session, connection.id, owner.id, connection.is_enabled)
     await get_or_create_user(session, owner, settings.default_timezone)
-    if connection.is_enabled:
-        text = (
-            "🗄 <b>Архив чатов подключён.</b>\n\n"
-            "Сохраняю сообщения из ваших личных чатов и пришлю сюда, если собеседник "
-            "изменит или удалит сообщение. В сами чаты я ничего не пишу.\n\n"
-            "/archive — состояние и настройки, /chats — чаты в архиве, "
-            "/deleted — последние удалённые."
-        )
-    else:
-        text = "🗄 Архив чатов отключён. Уже сохранённые сообщения остались: /chats"
+    text = BUSINESS_ON if connection.is_enabled else BUSINESS_OFF
     try:
         await bot.send_message(connection.user_chat_id, text, parse_mode="HTML")
     except TelegramAPIError:
@@ -126,11 +125,7 @@ async def on_edited_business_message(
     row = result.message
     if not result.changed or row.outgoing or not owner.notify_edits:
         return
-    text = (
-        f"✏️ <b>Сообщение изменено</b>\n{_where(row)}\n\n"
-        f"<b>Было:</b>\n{_short(result.old_text)}\n\n"
-        f"<b>Стало:</b>\n{_short(row.text)}"
-    )
+    text = message_edited(_where(row), _short(result.old_text), _short(row.text))
     try:
         await bot.send_message(owner.id, text, parse_mode="HTML")
     except TelegramAPIError:
@@ -164,14 +159,14 @@ async def on_deleted_business_messages(
 
     chat = html.escape(event.chat.full_name or event.chat.title or str(event.chat.id))
     total = len(incoming) + missing
-    lines = [f"🗑 <b>Удалено сообщений: {total}</b> · {chat}", ""]
+    lines = [deleted_batch_header(total, chat), ""]
     for row in incoming[:SHOW_DELETED]:
         sent = row.sent_at.astimezone(ZoneInfo(owner.timezone))
         lines.append(f"{_where(row)}, {sent:%d.%m %H:%M}\n{_describe(row)}\n")
     if len(incoming) > SHOW_DELETED:
-        lines.append(f"…и ещё {len(incoming) - SHOW_DELETED}: /deleted")
+        lines.append(deleted_batch_more(len(incoming) - SHOW_DELETED))
     if missing:
-        lines.append(f"Текст {missing} из них неизвестен: они пришли до подключения архива.")
+        lines.append(deleted_batch_unknown(missing))
     try:
         await bot.send_message(owner.id, "\n".join(lines).strip(), parse_mode="HTML")
         for row in incoming[:SHOW_DELETED]:

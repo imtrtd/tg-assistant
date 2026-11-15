@@ -3,11 +3,11 @@ import contextlib
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import MenuButtonCommands, MenuButtonWebApp, WebAppInfo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from .branding import setup_bot_profile
 from .config import Settings
-from .handlers import BOT_COMMANDS, build_router, on_error
+from .handlers import build_router, on_error
 from .middlewares import AccessMiddleware, DbMiddleware
 from .reminders.scheduler import run_scheduler
 from .web import LoginTokens, create_web_app, start_web_server
@@ -35,16 +35,7 @@ async def _on_startup(
     settings: Settings,
     login_tokens: LoginTokens,
 ) -> None:
-    await bot.set_my_commands(BOT_COMMANDS)
-    # Кнопка меню слева от поля ввода: мини-приложение, если оно настроено, иначе список команд.
-    if settings.mini_app_enabled:
-        await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(
-                text="Открыть", web_app=WebAppInfo(url=settings.web_app_url)
-            )
-        )
-    else:
-        await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+    await setup_bot_profile(bot, settings)
     me = await bot.get_me()
     logger.info("Bot @%s started", me.username)
     dispatcher["scheduler_task"] = asyncio.create_task(
