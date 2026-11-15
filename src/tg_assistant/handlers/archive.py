@@ -15,18 +15,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import ArchivedMessage, User
 from ..db import archive as repo
 from ..db.archive import MEDIA_LABELS
+from ..texts import (
+    ARCHIVE_CHAT_EMPTY,
+    ARCHIVE_HOW_TO,
+    ARCHIVE_SAVED,
+    archive_head,
+    archive_stats,
+    chats_empty,
+    chats_header,
+    deleted_empty,
+    deleted_header,
+)
 
 CHATS_LIMIT = 20
 DELETED_LIMIT = 15
-
-HOW_TO_CONNECT = (
-    "Как подключить:\n"
-    "1. В @BotFather: /mybots → бот → Bot Settings → Business Mode → Turn on.\n"
-    "2. В Telegram: Настройки → Telegram Business → Чат-боты → выберите этого бота.\n"
-    "   (нужна подписка Telegram Premium)\n"
-    "3. Укажите, к каким чатам дать доступ.\n\n"
-    "Сохраняются только сообщения, пришедшие после подключения."
-)
 
 
 class ArchCb(CallbackData, prefix="arch"):
@@ -56,14 +58,9 @@ def _status_markup(user: User) -> InlineKeyboardMarkup:
 async def _status_text(session: AsyncSession, user: User) -> str:
     connected = await repo.has_active_connection(session, user.id)
     chats, messages, edited, deleted = await repo.counts(session, user.id)
-    head = "🗄 <b>Архив чатов</b> — " + ("подключён ✅" if connected else "не подключён")
-    stats = (
-        f"Чатов: {chats} · сообщений: {messages}\n"
-        f"Изменено собеседниками и вами: {edited} · удалено: {deleted}"
-    )
-    text = f"{head}\n\n{stats}"
+    text = f"{archive_head(connected)}\n\n{archive_stats(chats, messages, edited, deleted)}"
     if not connected:
-        text += "\n\n" + html.escape(HOW_TO_CONNECT)
+        text += "\n\n" + ARCHIVE_HOW_TO
     return text
 
 
@@ -89,14 +86,14 @@ async def on_toggle(query: CallbackQuery, callback_data: ArchCb, session: AsyncS
         except TelegramBadRequest as exc:
             if "message is not modified" not in str(exc):
                 raise
-    await query.answer("Сохранено")
+    await query.answer(ARCHIVE_SAVED)
 
 
 async def _chats_view(session: AsyncSession, user: User) -> tuple[str, InlineKeyboardMarkup | None]:
     chats = await repo.list_chats(session, user.id, limit=CHATS_LIMIT)
     if not chats:
-        return "В архиве пока нет чатов. Подключение: /archive", None
-    lines = ["📁 <b>Чаты в архиве</b> (нажмите, чтобы выгрузить файлом)", ""]
+        return chats_empty(), None
+    lines = [chats_header(), ""]
     kb = InlineKeyboardBuilder()
     for chat in chats:
         last = _local(chat.last_at, user.timezone)
@@ -149,7 +146,7 @@ def render_chat(rows: list[ArchivedMessage], edits: dict[int, list], tz: str) ->
 async def on_export(query: CallbackQuery, callback_data: ArchCb, session: AsyncSession, user: User):
     rows = await repo.chat_messages(session, user.id, callback_data.chat_id)
     if not rows:
-        await query.answer("В этом чате нет сохранённых сообщений", show_alert=True)
+        await query.answer(ARCHIVE_CHAT_EMPTY, show_alert=True)
         return
     edits = {row.id: await repo.edits_of(session, row.id) for row in rows if row.edited_at}
     content = render_chat(rows, edits, user.timezone).encode("utf-8")
@@ -166,9 +163,9 @@ async def on_export(query: CallbackQuery, callback_data: ArchCb, session: AsyncS
 async def cmd_deleted(message: Message, session: AsyncSession, user: User):
     rows = await repo.recent_deleted(session, user.id, limit=DELETED_LIMIT)
     if not rows:
-        await message.answer("Удалённых сообщений в архиве нет.")
+        await message.answer(deleted_empty(), parse_mode="HTML")
         return
-    lines = [f"🗑 <b>Последние удалённые</b> ({len(rows)})", ""]
+    lines = [deleted_header(len(rows)), ""]
     for row in rows:
         deleted = _local(row.deleted_at, user.timezone)
         body = row.text or ""

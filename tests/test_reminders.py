@@ -45,7 +45,7 @@ async def test_fires_due_one_off_once(bot, session_factory, owner):
     assert await fire_due(bot, session_factory, NOW) == 1
     assert await fire_due(bot, session_factory, NOW) == 0
 
-    assert sent_texts(bot) == ["⏰ &lt;срочно&gt;"]
+    assert sent_texts(bot) == ["⏰ <b>Напоминание</b>\n&lt;срочно&gt;"]
     assert not (await _get(session_factory, due.id)).active
     assert (await _get(session_factory, future.id)).active
 

@@ -1,50 +1,33 @@
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import BotCommand, Message
+from aiogram.types import Message
 
+from ..config import Settings
 from ..db import User
+from ..texts import BOT_COMMANDS, GROUP_COMMANDS, REPLY_HINT, command_help
+from .menu import create_router as create_menu_router
+from .menu import reply_keyboard, send_screen
 
-BOT_COMMANDS = [
-    BotCommand(command="start", description="Начать работу"),
-    BotCommand(command="note", description="Сохранить заметку"),
-    BotCommand(command="notes", description="Мои заметки"),
-    BotCommand(command="find", description="Поиск по заметкам"),
-    BotCommand(command="edit", description="Изменить заметку: /edit 12 текст"),
-    BotCommand(command="del", description="Удалить заметку: /del 12"),
-    BotCommand(command="remind", description="Напомнить: /remind завтра в 9 позвонить"),
-    BotCommand(command="reminders", description="Мои напоминания"),
-    BotCommand(command="timezone", description="Часовой пояс"),
-    BotCommand(command="digest", description="Утренняя сводка: /digest 8:00 или off"),
-    BotCommand(command="export", description="Выгрузить заметки файлом"),
-    BotCommand(command="archive", description="Архив чатов: состояние и настройки"),
-    BotCommand(command="chats", description="Чаты в архиве, выгрузка файлом"),
-    BotCommand(command="deleted", description="Последние удалённые сообщения"),
-    BotCommand(command="app", description="Открыть приложение"),
-    BotCommand(command="web", description="Ссылка для входа в браузере"),
-    BotCommand(command="help", description="Список команд"),
-]
+__all__ = ["BOT_COMMANDS", "GROUP_COMMANDS", "HELP_TEXT"]
 
-HELP_TEXT = (
-    "Доступные команды:\n"
-    + "\n".join(
-        f"/{c.command} — {c.description[0].lower()}{c.description[1:]}" for c in BOT_COMMANDS
-    )
-    + "\n\nТеги: добавьте #тег в текст заметки и ищите через /find #тег."
-    + "\nМожно просто написать или переслать сообщение — бот предложит сохранить его"
-    " в заметки или поставить напоминание."
-)
+HELP_TEXT = command_help(BOT_COMMANDS)
 
 
-async def cmd_start(message: Message, user: User) -> None:
-    await message.answer(f"Привет, {user.first_name}! Я твой ассистент.\n\n{HELP_TEXT}")
+async def cmd_start(message: Message, user: User, settings: Settings) -> None:
+    await send_screen(message, "home", user, settings)
+    if message.chat.type == "private":
+        await message.answer(REPLY_HINT, parse_mode="HTML", reply_markup=reply_keyboard())
 
 
-async def cmd_help(message: Message) -> None:
-    await message.answer(HELP_TEXT)
+async def cmd_help(message: Message, user: User, settings: Settings) -> None:
+    await send_screen(message, "home", user, settings, extra=HELP_TEXT)
+    if message.chat.type == "private":
+        await message.answer(REPLY_HINT, parse_mode="HTML", reply_markup=reply_keyboard())
 
 
 def create_router() -> Router:
     router = Router(name="common")
+    router.include_router(create_menu_router())
     router.message.register(cmd_start, CommandStart())
     router.message.register(cmd_help, Command("help"))
     return router

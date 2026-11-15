@@ -11,35 +11,40 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import Note, User
 from ..db.digest import build_digest, parse_digest_time, set_digest
+from ..texts import (
+    digest_bad_time,
+    digest_disabled,
+    digest_enabled,
+    digest_status,
+    export_caption,
+    export_empty,
+)
 
 OFF_WORDS = {"off", "выкл", "нет", "stop", "0"}
 
 
-async def cmd_digest(message: Message, command: CommandObject, session: AsyncSession, user: User):
-    arg = (command.args or "").strip().lower()
+async def show_digest(message: Message, session: AsyncSession, user: User, arg: str) -> None:
     if not arg:
         state = f"включена, в {user.digest_time}" if user.digest_time else "выключена"
-        await message.answer(
-            f"Утренняя сводка {state}. Пример сегодняшней:\n\n"
-            + await build_digest(session, user, datetime.now(UTC))
-            + "\n\nВключить: /digest 8:00 · выключить: /digest off",
-            parse_mode="HTML",
-        )
+        example = await build_digest(session, user, datetime.now(UTC))
+        await message.answer(digest_status(state, example), parse_mode="HTML")
         return
     if arg in OFF_WORDS:
         set_digest(user, None)
         await session.commit()
-        await message.answer("Утренняя сводка выключена.")
+        await message.answer(digest_disabled(), parse_mode="HTML")
         return
     digest_time = parse_digest_time(arg)
     if digest_time is None:
-        await message.answer("Не понял время. Пример: /digest 8:00 или /digest off")
+        await message.answer(digest_bad_time(), parse_mode="HTML")
         return
     set_digest(user, digest_time)
     await session.commit()
-    await message.answer(
-        f"Готово: каждый день в {digest_time} ({user.timezone}) пришлю список дел на день."
-    )
+    await message.answer(digest_enabled(digest_time, user.timezone), parse_mode="HTML")
+
+
+async def cmd_digest(message: Message, command: CommandObject, session: AsyncSession, user: User):
+    await show_digest(message, session, user, (command.args or "").strip().lower())
 
 
 def render_export(notes: list[Note], tz_name: str) -> str:
@@ -58,12 +63,13 @@ async def cmd_export(message: Message, session: AsyncSession, user: User):
         await session.scalars(select(Note).where(Note.user_id == user.id).order_by(Note.id))
     )
     if not notes:
-        await message.answer("Заметок пока нет — выгружать нечего.")
+        await message.answer(export_empty(), parse_mode="HTML")
         return
     data = render_export(notes, user.timezone).encode("utf-8")
     name = f"notes-{datetime.now(ZoneInfo(user.timezone)):%Y-%m-%d}.txt"
     await message.answer_document(
-        BufferedInputFile(data, filename=name), caption=f"Заметок: {len(notes)}"
+        BufferedInputFile(data, filename=name),
+        caption=export_caption(len(notes)),
     )
 
 

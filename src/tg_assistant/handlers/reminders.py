@@ -15,21 +15,22 @@ from ..db.digest import set_digest
 from ..reminders.format import format_repeat, format_when, parse_timezone
 from ..reminders.keyboards import RemCb
 from ..reminders.timeparse import parse_reminder
+from ..texts import (
+    DONE_TOAST,
+    REMIND_UNKNOWN,
+    REMINDER_GONE,
+    remind_help,
+    remind_set,
+    reminders_empty,
+    reminders_header,
+    removed_toast,
+    snooze_toast,
+    timezone_current,
+    timezone_set,
+    timezone_unknown,
+)
 
 LIST_LIMIT = 20
-
-REMIND_HELP = (
-    "Примеры:\n"
-    "/remind через 15 минут выключить духовку\n"
-    "/remind 18:30 позвонить маме\n"
-    "/remind завтра в 9 оплатить счёт\n"
-    "/remind 25.12 купить подарки\n"
-    "/remind в пятницу 19:00 кино\n"
-    "/remind каждый день 8:00 витамины\n"
-    "/remind по будням 9:30 стендап\n"
-    "/remind каждую пятницу 18:00 отчёт\n\n"
-    "Без времени дня — в 9:00. Часовой пояс: /timezone"
-)
 
 
 def _now(user: User) -> datetime:
@@ -47,20 +48,20 @@ async def cmd_remind(message: Message, command: CommandObject, session: AsyncSes
     now = _now(user)
     parsed = parse_reminder(command.args or "", now)
     if parsed is None:
-        prefix = "Не понял, когда напомнить.\n\n" if command.args else ""
-        await message.answer(prefix + REMIND_HELP)
+        prefix = REMIND_UNKNOWN if command.args else ""
+        await message.answer(prefix + remind_help(), parse_mode="HTML")
         return
     reminder = await repo.add_reminder(session, user.id, parsed.text, parsed.when, parsed.repeat)
-    await message.answer("⏰ Напомню: " + _describe(reminder, user, now), parse_mode="HTML")
+    await message.answer(remind_set(_describe(reminder, user, now)), parse_mode="HTML")
 
 
 def _render_list(reminders: list[Reminder], user: User) -> tuple[str, InlineKeyboardMarkup | None]:
     if not reminders:
-        return "Активных напоминаний нет. Создать: /remind", None
+        return reminders_empty(), None
     now = _now(user)
-    header = f"⏰ Напоминания ({len(reminders)})"
-    if len(reminders) == LIST_LIMIT:
-        header += f", показаны ближайшие {LIST_LIMIT}"
+    header = reminders_header(
+        len(reminders), truncated=len(reminders) == LIST_LIMIT, limit=LIST_LIMIT
+    )
     lines = [f"#{r.id} " + _describe(r, user, now) for r in reminders]
     kb = InlineKeyboardBuilder()
     for r in reminders:
@@ -78,24 +79,18 @@ async def cmd_reminders(message: Message, session: AsyncSession, user: User):
 async def cmd_timezone(message: Message, command: CommandObject, session: AsyncSession, user: User):
     if not command.args:
         await message.answer(
-            f"Ваш часовой пояс: <b>{user.timezone}</b>, сейчас {_now(user):%H:%M}.\n"
-            "Изменить: /timezone Europe/Moscow, /timezone +3 или /timezone мск",
-            parse_mode="HTML",
+            timezone_current(user.timezone, f"{_now(user):%H:%M}"), parse_mode="HTML"
         )
         return
     tz = parse_timezone(command.args)
     if tz is None:
-        await message.answer(
-            "Не знаю такой часовой пояс. Пример: /timezone Asia/Yekaterinburg или /timezone +5"
-        )
+        await message.answer(timezone_unknown(), parse_mode="HTML")
         return
     user.timezone = tz
     if user.digest_time:
         set_digest(user, user.digest_time)
     await session.commit()
-    await message.answer(
-        f"Часовой пояс: <b>{tz}</b>, сейчас {_now(user):%H:%M}.", parse_mode="HTML"
-    )
+    await message.answer(timezone_set(tz, f"{_now(user):%H:%M}"), parse_mode="HTML")
 
 
 async def _drop_keyboard(query: CallbackQuery) -> None:
@@ -109,13 +104,13 @@ async def _drop_keyboard(query: CallbackQuery) -> None:
 
 async def on_done(query: CallbackQuery, callback_data: RemCb):
     await _drop_keyboard(query)
-    await query.answer("Готово ✅")
+    await query.answer(DONE_TOAST)
 
 
 async def on_snooze(query: CallbackQuery, callback_data: RemCb, session: AsyncSession, user: User):
     reminder = await repo.get_reminder(session, user.id, callback_data.reminder_id)
     if reminder is None:
-        await query.answer("Напоминание уже удалено", show_alert=True)
+        await query.answer(REMINDER_GONE, show_alert=True)
         return
     when = datetime.now(UTC) + timedelta(minutes=callback_data.minutes)
     if reminder.repeat is None:
@@ -126,7 +121,7 @@ async def on_snooze(query: CallbackQuery, callback_data: RemCb, session: AsyncSe
         await repo.add_reminder(session, user.id, reminder.text, when)
     await _drop_keyboard(query)
     local = when.astimezone(ZoneInfo(user.timezone))
-    await query.answer(f"Напомню в {local:%H:%M}")
+    await query.answer(snooze_toast(f"{local:%H:%M}"))
 
 
 async def on_delete(query: CallbackQuery, callback_data: RemCb, session: AsyncSession, user: User):
@@ -138,7 +133,7 @@ async def on_delete(query: CallbackQuery, callback_data: RemCb, session: AsyncSe
         except TelegramBadRequest as exc:
             if "message is not modified" not in str(exc):
                 raise
-    await query.answer("Удалено" if deleted else "Уже удалено")
+    await query.answer(removed_toast(deleted))
 
 
 def create_router() -> Router:
