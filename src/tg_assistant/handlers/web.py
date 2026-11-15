@@ -10,20 +10,16 @@ from aiogram.types import (
 
 from ..config import Settings
 from ..db import User
+from ..texts import APP_INTRO, APP_NEEDS_HTTPS, WEB_NOT_CONFIGURED, WEB_PRIVATE_ONLY, web_link
 from ..web.auth import LOGIN_TOKEN_TTL, LoginTokens
-
-NOT_CONFIGURED = "Веб-интерфейс не настроен: в .env не задан WEB_APP_URL."
 
 
 async def cmd_app(message: Message, settings: Settings):
     if not settings.web_enabled:
-        await message.answer(NOT_CONFIGURED)
+        await message.answer(WEB_NOT_CONFIGURED, parse_mode="HTML")
         return
     if not settings.mini_app_enabled:
-        await message.answer(
-            "Мини-приложение в Telegram работает только по HTTPS.\n"
-            "Сейчас доступен вход в браузере: /web"
-        )
+        await message.answer(APP_NEEDS_HTTPS, parse_mode="HTML")
         return
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -34,21 +30,21 @@ async def cmd_app(message: Message, settings: Settings):
             ]
         ]
     )
-    await message.answer("Заметки и напоминания в одном окне:", reply_markup=keyboard)
+    await message.answer(APP_INTRO, reply_markup=keyboard, parse_mode="HTML")
 
 
 async def cmd_web(message: Message, settings: Settings, login_tokens: LoginTokens, user: User):
     if not settings.web_enabled:
-        await message.answer(NOT_CONFIGURED)
+        await message.answer(WEB_NOT_CONFIGURED, parse_mode="HTML")
         return
     if message.chat.type != "private":
-        await message.answer("Ссылку для входа пришлю только в личном чате.")
+        await message.answer(WEB_PRIVATE_ONLY, parse_mode="HTML")
         return
     # Токен в части после # не уходит на сервер при открытии и не попадает в логи прокси.
     url = f"{settings.web_app_url}/#login={login_tokens.issue(user.id)}"
     await message.answer(
-        f"Ссылка для входа в браузере:\n{url}\n\n"
-        f"Действует {LOGIN_TOKEN_TTL // 60} минут и только один раз. Никому её не пересылайте.",
+        web_link(url, LOGIN_TOKEN_TTL // 60),
+        parse_mode="HTML",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 

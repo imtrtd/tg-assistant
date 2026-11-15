@@ -39,7 +39,6 @@ const ICONS = {
   logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
   note: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="8" width="40" height="48" rx="8"/><path d="M22 22h20M22 32h20M22 42h11"/></svg>',
   bell: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 44V29a16 16 0 0 1 32 0v15l4 6H12Z"/><path d="M27 54a5 5 0 0 0 10 0"/><path d="M32 8v5"/></svg>',
-  logo: '<svg viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d7dff"/><stop offset="1" stop-color="#3f5bf0"/></linearGradient></defs><rect width="64" height="64" fill="url(#lg)"/><path d="M19 33.5l9 9 17-20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
 const CHIPS = ["через час", "сегодня в 18:00", "завтра в 9", "каждый день 8:00", "по будням 9:30"];
@@ -620,7 +619,6 @@ async function redeemLoginLink() {
 
 async function start() {
   document.querySelector(".search-icon").innerHTML = ICONS.search;
-  document.querySelector(".gate-logo").innerHTML = ICONS.logo;
   $("logout").innerHTML = ICONS.logout;
   $("settings-btn").innerHTML = ICONS.gear;
 

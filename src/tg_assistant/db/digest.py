@@ -1,6 +1,5 @@
 """Утренняя сводка: расписание и текст."""
 
-import html
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -8,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..reminders.format import format_repeat
+from ..texts import digest_item, morning_digest
 from .models import Note, Reminder, User
 
 
@@ -72,15 +72,10 @@ async def build_digest(session: AsyncSession, user: User, now: datetime) -> str:
     )
     notes = await session.scalar(select(func.count()).where(Note.user_id == user.id)) or 0
 
-    lines = [f"☀️ <b>Доброе утро, {html.escape(user.first_name)}!</b>", ""]
-    if reminders:
-        lines.append(f"Сегодня напоминаний: {len(reminders)}")
-        for r in reminders:
-            local = r.remind_at.astimezone(tz)
-            repeat = format_repeat(r.repeat, local)
-            suffix = f" 🔁 {repeat}" if repeat else ""
-            lines.append(f"• <b>{local:%H:%M}</b> {html.escape(r.text)}{suffix}")
-    else:
-        lines.append("На сегодня напоминаний нет.")
-    lines += ["", f"Заметок всего: {notes}. Отключить сводку: /digest off"]
-    return "\n".join(lines)
+    items = []
+    for reminder in reminders:
+        local = reminder.remind_at.astimezone(tz)
+        items.append(
+            digest_item(f"{local:%H:%M}", reminder.text, format_repeat(reminder.repeat, local))
+        )
+    return morning_digest(user.first_name, items, notes)
