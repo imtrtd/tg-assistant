@@ -271,3 +271,46 @@ async def purge_older_than(session: AsyncSession, days: int, now: datetime | Non
     result = await session.execute(delete(ArchivedMessage).where(ArchivedMessage.sent_at < cutoff))
     await session.commit()
     return result.rowcount or 0
+
+
+# --- для мини-приложения ---------------------------------------------------
+
+
+async def get_owned(
+    session: AsyncSession, owner_id: int, archived_id: int
+) -> ArchivedMessage | None:
+    row = await session.get(ArchivedMessage, archived_id)
+    return row if row is not None and row.owner_id == owner_id else None
+
+
+async def chat_page(
+    session: AsyncSession, owner_id: int, chat_id: int, *, before_id: int | None, limit: int
+) -> tuple[list[ArchivedMessage], bool]:
+    """Страница переписки: последние `limit` сообщений до `before_id`, по возрастанию.
+
+    Второе значение — есть ли сообщения раньше этой страницы.
+    """
+    stmt = select(ArchivedMessage).where(
+        ArchivedMessage.owner_id == owner_id, ArchivedMessage.chat_id == chat_id
+    )
+    if before_id is not None:
+        stmt = stmt.where(ArchivedMessage.id < before_id)
+    rows = list(await session.scalars(stmt.order_by(ArchivedMessage.id.desc()).limit(limit + 1)))
+    has_more = len(rows) > limit
+    return list(reversed(rows[:limit])), has_more
+
+
+async def edits_for(
+    session: AsyncSession, archived_ids: Sequence[int]
+) -> dict[int, list[MessageEdit]]:
+    if not archived_ids:
+        return {}
+    result = await session.scalars(
+        select(MessageEdit)
+        .where(MessageEdit.message_id.in_(list(archived_ids)))
+        .order_by(MessageEdit.message_id, MessageEdit.id)
+    )
+    grouped: dict[int, list[MessageEdit]] = {}
+    for edit in result:
+        grouped.setdefault(edit.message_id, []).append(edit)
+    return grouped

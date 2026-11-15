@@ -2,15 +2,16 @@ import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from aiogram import Bot
 from aiohttp import web
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..config import Settings
 from ..db import User
 from ..db.users import get_or_create_user
-from . import api
+from . import api, archive_api
 from .auth import SESSION_COOKIE, LoginTokens, SessionSigner, parse_init_data
-from .keys import DB, LOGIN_TOKENS, SESSION_FACTORY, SETTINGS, SIGNER, USER
+from .keys import BOT, DB, LOGIN_TOKENS, SESSION_FACTORY, SETTINGS, SIGNER, USER
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ MAX_BODY = 64 * 1024
 
 CSP = (
     "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; "
-    "img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; "
+    "img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; "
     "frame-ancestors https://web.telegram.org https://*.telegram.org"
 )
 PUBLIC_API = {"/api/login", "/api/logout"}
@@ -95,15 +96,19 @@ def create_web_app(
     settings: Settings,
     session_factory: async_sessionmaker[AsyncSession],
     login_tokens: LoginTokens,
+    bot: Bot | None = None,
 ) -> web.Application:
     app = web.Application(middlewares=[security_headers, auth], client_max_size=MAX_BODY)
     app[SETTINGS] = settings
     app[SESSION_FACTORY] = session_factory
     app[LOGIN_TOKENS] = login_tokens
     app[SIGNER] = SessionSigner.from_bot_token(settings.telegram_bot_token.get_secret_value())
+    if bot is not None:
+        app[BOT] = bot
     app.router.add_get("/", index)
     app.router.add_static("/static/", STATIC_DIR)
     api.setup_routes(app)
+    archive_api.setup_routes(app)
     return app
 
 

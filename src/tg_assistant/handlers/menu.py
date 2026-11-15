@@ -69,6 +69,11 @@ def section_keyboard(section: str, settings: Settings) -> InlineKeyboardMarkup:
     elif section == "reminders":
         kb.button(text="Мои напоминания", callback_data=MenuCb(section="open-reminders"))
     elif section == "archive":
+        if settings.mini_app_enabled:
+            kb.button(
+                text="📱 Архив в приложении",
+                web_app=WebAppInfo(url=settings.app_url(open="archive")),
+            )
         kb.button(text="Открыть архив", callback_data=MenuCb(section="open-archive"))
     elif section == "digest":
         kb.button(text="Показать сводку", callback_data=MenuCb(section="open-digest"))
@@ -184,7 +189,7 @@ async def on_menu(
         return
     if section == "open-archive" and message is not None:
         await query.answer()
-        await cmd_archive(message, session, user)
+        await cmd_archive(message, session, user, settings)
         return
     if section == "open-digest" and message is not None:
         await query.answer()

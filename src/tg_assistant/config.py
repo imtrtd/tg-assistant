@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import SecretStr, field_validator
@@ -29,6 +30,9 @@ class Settings(DatabaseSettings):
     # Публичный адрес веб-интерфейса. Пусто — веб-интерфейс выключен.
     # https://... — работает и мини-приложение в Telegram; http://localhost:8080 — только браузер.
     web_app_url: str = ""
+    # Адрес метрик cloudflared (например http://cloudflared:2000). Если задан, бот сам узнаёт
+    # публичный HTTPS-адрес быстрого туннеля Cloudflare и подставляет его в WEB_APP_URL.
+    web_tunnel_metrics_url: str = ""
     web_host: str = "0.0.0.0"
     web_port: int = 8080
 
@@ -42,7 +46,20 @@ class Settings(DatabaseSettings):
 
     @property
     def web_enabled(self) -> bool:
+        """Есть ли публичный адрес веб-интерфейса (с туннелем — после того как он получен)."""
         return bool(self.web_app_url)
+
+    @property
+    def web_server_enabled(self) -> bool:
+        """Запускать ли веб-сервер: адрес задан или будет получен от туннеля."""
+        return bool(self.web_app_url or self.web_tunnel_metrics_url)
+
+    def app_url(self, **params: str | int) -> str:
+        """Адрес мини-приложения, например app_url(open="archive", chat=123)."""
+        if not params:
+            return self.web_app_url
+        query = urlencode({key: str(value) for key, value in params.items()})
+        return f"{self.web_app_url}/?{query}"
 
     @property
     def mini_app_enabled(self) -> bool:

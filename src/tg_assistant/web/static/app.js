@@ -425,6 +425,8 @@ function selectTab(name) {
   for (const tab of document.querySelectorAll(".tab")) {
     tab.setAttribute("aria-selected", String(tab.dataset.tab === name));
   }
+  if (name === "archive" && !archive.loaded) loadArchive();
+  showBackButton(name === "archive" && isChatOpen());
   try {
     sessionStorage.setItem("tab", name);
   } catch {
@@ -507,6 +509,7 @@ async function saveSettings(event) {
 }
 
 function bindEvents() {
+  bindArchive();
   $("tz-list").replaceChildren(...COMMON_ZONES.map((zone) => el("option", { value: zone })));
   $("settings-btn").addEventListener("click", () => toggleSettings());
   $("settings-cancel").addEventListener("click", () => toggleSettings(false));
@@ -601,6 +604,7 @@ function bindEvents() {
     if (document.visibilityState === "visible" && state.me) {
       loadReminders();
       if (!document.querySelector(".card.editing")) loadNotes(false);
+      if (archive.loaded && !isChatOpen()) loadArchive();
     }
   });
 }
@@ -608,7 +612,7 @@ function bindEvents() {
 async function redeemLoginLink() {
   const match = location.hash.match(/^#login=([\w-]+)$/);
   if (!match) return;
-  history.replaceState(null, "", location.pathname);
+  history.replaceState(null, "", location.pathname + location.search);
   try {
     await api("POST", "/api/login", { token: match[1] });
   } catch (error) {
@@ -652,11 +656,14 @@ async function start() {
   } catch {
     /* хранилище недоступно */
   }
-  selectTab(savedTab === "reminders" ? "reminders" : "notes");
+  const target = launchTarget();
+  const tab = target ? target.tab : savedTab;
   skeletons($("notes"));
   skeletons($("reminders"));
+  selectTab(["reminders", "archive"].includes(tab) ? tab : "notes");
   $("splash").hidden = true;
   $("app").hidden = false;
+  if (target && target.chatId !== null) openChat(target.chatId, "");
   await Promise.all([loadNotes(false), loadReminders()]);
 }
 

@@ -12,9 +12,16 @@ from zoneinfo import ZoneInfo
 from aiogram import Bot, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import BusinessConnection as TgBusinessConnection
-from aiogram.types import BusinessMessagesDeleted, Message
+from aiogram.types import (
+    BusinessMessagesDeleted,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..archive_delivery import send_media
 from ..config import Settings
 from ..db import ArchivedMessage, User
 from ..db import archive as repo
@@ -33,16 +40,6 @@ logger = logging.getLogger(__name__)
 
 TEXT_LIMIT = 1500  # на одну версию текста: «было» + «стало» должны влезть в 4096
 SHOW_DELETED = 10  # сколько удалённых показывать в одном уведомлении
-MEDIA_SENDERS = {
-    "photo": ("send_photo", "photo", True),
-    "video": ("send_video", "video", True),
-    "animation": ("send_animation", "animation", True),
-    "voice": ("send_voice", "voice", True),
-    "audio": ("send_audio", "audio", True),
-    "document": ("send_document", "document", True),
-    "video_note": ("send_video_note", "video_note", False),
-    "sticker": ("send_sticker", "sticker", False),
-}
 
 
 def _short(text: str | None, limit: int = TEXT_LIMIT) -> str:
@@ -127,21 +124,27 @@ async def on_edited_business_message(
         return
     text = message_edited(_where(row), _short(result.old_text), _short(row.text))
     try:
-        await bot.send_message(owner.id, text, parse_mode="HTML")
+        await bot.send_message(
+            owner.id, text, parse_mode="HTML", reply_markup=_open_chat(settings, row.chat_id)
+        )
     except TelegramAPIError:
         logger.exception("Failed to notify %s about edited message", owner.id)
 
 
+def _open_chat(settings: Settings, chat_id: int) -> InlineKeyboardMarkup | None:
+    """Кнопка «Открыть переписку» в мини-приложении (только если оно доступно по HTTPS)."""
+    if not settings.mini_app_enabled:
+        return None
+    button = InlineKeyboardButton(
+        text="🗄 Открыть переписку",
+        web_app=WebAppInfo(url=settings.app_url(open="archive", chat=chat_id)),
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
+
+
 async def _resend_media(bot: Bot, owner_id: int, row: ArchivedMessage) -> None:
-    sender = MEDIA_SENDERS.get(row.media_type or "")
-    if sender is None or not row.file_id:
-        return
-    method, field, has_caption = sender
-    kwargs = {"chat_id": owner_id, field: row.file_id}
-    if has_caption:
-        kwargs["caption"] = f"🗑 Удалено · {row.sender_name}"[:1024]
     try:
-        await getattr(bot, method)(**kwargs)
+        await send_media(bot, owner_id, row, caption=f"🗑 Удалено · {row.sender_name}")
     except TelegramAPIError:
         logger.warning("Could not resend deleted %s %s", row.media_type, row.id)
 
@@ -168,7 +171,12 @@ async def on_deleted_business_messages(
     if missing:
         lines.append(deleted_batch_unknown(missing))
     try:
-        await bot.send_message(owner.id, "\n".join(lines).strip(), parse_mode="HTML")
+        await bot.send_message(
+            owner.id,
+            "\n".join(lines).strip(),
+            parse_mode="HTML",
+            reply_markup=_open_chat(settings, event.chat.id),
+        )
         for row in incoming[:SHOW_DELETED]:
             await _resend_media(bot, owner.id, row)
     except TelegramAPIError:

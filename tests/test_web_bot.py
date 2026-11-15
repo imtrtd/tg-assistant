@@ -85,3 +85,44 @@ async def test_startup_without_web_keeps_commands_menu_and_no_server(bot, make_d
         assert "web_runner" not in dp.workflow_data
     finally:
         await dp.emit_shutdown(bot=bot, **data)
+
+
+async def test_startup_takes_mini_app_address_from_tunnel(bot, session_factory, monkeypatch):
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+
+    async def quicktunnel(request):
+        return web.json_response({"hostname": "calm-fox.trycloudflare.com"})
+
+    metrics_app = web.Application()
+    metrics_app.router.add_get("/quicktunnel", quicktunnel)
+    metrics = TestServer(metrics_app)
+    await metrics.start_server()
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "42:TEST")
+    monkeypatch.setenv("ALLOWED_USER_IDS", str(ALLOWED_ID))
+    settings = Settings(
+        _env_file=None,
+        web_tunnel_metrics_url=str(metrics.make_url("")),
+        web_host="127.0.0.1",
+        web_port=0,
+    )
+    assert not settings.web_enabled and settings.web_server_enabled
+    dp = create_dispatcher(settings, session_factory)
+    data = await _startup(bot, dp)
+    try:
+        assert settings.web_app_url == "https://calm-fox.trycloudflare.com"
+        assert settings.mini_app_enabled
+        (menu,) = sent_methods(bot, SetChatMenuButton)
+        assert menu.menu_button.web_app.url == "https://calm-fox.trycloudflare.com"
+        assert "web_runner" in dp.workflow_data and "tunnel_task" in dp.workflow_data
+    finally:
+        await dp.emit_shutdown(bot=bot, **data)
+        await metrics.close()
+    assert "tunnel_task" not in dp.workflow_data
+
+
+def test_app_url_builds_deep_links():
+    settings = Settings(_env_file=None, telegram_bot_token="1:x", web_app_url="https://a.b/")
+    assert settings.app_url() == "https://a.b"
+    assert settings.app_url(open="archive", chat=-100) == "https://a.b/?open=archive&chat=-100"
