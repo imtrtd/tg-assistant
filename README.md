@@ -84,6 +84,12 @@ Telegram-ассистент: бот, который помогает автом�
    `WEB_APP_URL=http://localhost:8080`, перезапустите бота и отправьте ему `/web`.
    Мини-приложению в Telegram нужен HTTPS — см. [docs/deploy.md](docs/deploy.md).
 
+## Мини-приложение в Telegram
+
+Всё — заметки, напоминания и **архив чатов** с правками и удалениями — открывается
+внутри Telegram. Нужен HTTPS: без своего домена бот сам поднимает его через бесплатный
+туннель Cloudflare. Инструкция — [docs/mini-app.md](docs/mini-app.md).
+
 ## Запуск на сервере
 
 Docker и скрипты для VPS: см. [docs/deploy.md](docs/deploy.md). Локально в Docker:

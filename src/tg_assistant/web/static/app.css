@@ -177,7 +177,7 @@ code {
   top: 8px;
   z-index: 5;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 4px;
   margin-bottom: 14px;
   border-radius: 14px;
@@ -190,11 +190,14 @@ code {
   z-index: 1;
   border: 0;
   background: none;
-  padding: 9px 8px;
+  padding: 9px 4px;
   border-radius: 10px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14.5px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: color 0.2s;
 }
 
@@ -207,7 +210,7 @@ code {
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc(50% - 4px);
+  width: calc((100% - 8px) / 3);
   border-radius: 10px;
   background: var(--accent-soft);
   transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.2, 1);
@@ -215,6 +218,10 @@ code {
 
 .tabs[data-active="reminders"] .tab-thumb {
   transform: translateX(100%);
+}
+
+.tabs[data-active="archive"] .tab-thumb {
+  transform: translateX(200%);
 }
 
 .count {
@@ -235,6 +242,17 @@ code {
   display: none;
 }
 
+.count.alert {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+@media (max-width: 420px) {
+  .tab .count:not(.alert) {
+    display: none;
+  }
+}
+
 .panel-title {
   display: none;
   margin: 0 0 12px;
@@ -246,7 +264,11 @@ code {
 }
 
 .panels[data-active="notes"] #panel-reminders,
-.panels[data-active="reminders"] #panel-notes {
+.panels[data-active="notes"] #panel-archive,
+.panels[data-active="reminders"] #panel-notes,
+.panels[data-active="reminders"] #panel-archive,
+.panels[data-active="archive"] #panel-notes,
+.panels[data-active="archive"] #panel-reminders {
   display: none;
 }
 
@@ -927,18 +949,20 @@ code {
     padding-bottom: 22px;
   }
 
+  /* Вкладки на широком экране: «Заметки» и «Напоминания» открывают общий вид в два столбца. */
   .tabs {
-    display: none;
+    max-width: 520px;
   }
 
-  .panels {
+  .panels:not([data-active="archive"]) {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     gap: 28px;
     align-items: start;
   }
 
-  .panels[data-active] .panel {
+  .panels:not([data-active="archive"]) #panel-notes,
+  .panels:not([data-active="archive"]) #panel-reminders {
     display: block !important;
   }
 
@@ -950,6 +974,357 @@ code {
     flex-wrap: wrap;
     overflow: visible;
   }
+
+  #archive-home {
+    display: grid;
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    gap: 0 28px;
+    align-items: start;
+  }
+
+  #archive-home > .archive-status {
+    grid-row: span 3;
+    position: sticky;
+    top: 80px;
+  }
+}
+
+/* --- архив чатов --------------------------------------------------------- */
+
+.archive-status {
+  padding: 14px 16px 12px;
+  margin-bottom: 12px;
+}
+
+.archive-status-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+}
+
+.status-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 4px var(--line);
+}
+
+.status-dot.on {
+  background: #2fb36d;
+  box-shadow: 0 0 0 4px rgba(47, 179, 109, 0.18);
+}
+
+.archive-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+
+.archive-counts div {
+  min-width: 0;
+}
+
+.archive-counts b {
+  display: block;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.archive-counts span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.archive-steps {
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+
+.archive-steps li {
+  font-size: 14px;
+}
+
+.archive-toggles {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--field);
+}
+
+.segmented button {
+  border: 0;
+  border-radius: 9px;
+  padding: 8px;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.segmented button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-row:hover {
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent));
+}
+
+.avatar.small {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 16px;
+}
+
+.chat-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-row-body b,
+.chat-row-body span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-row-body span {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.chat-row-side {
+  flex: none;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.chat-row-side .count {
+  margin: 4px 0 0;
+}
+
+.chat-head {
+  position: sticky;
+  top: 62px; /* под липкими вкладками */
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 6px;
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  /* Вторая тень цвета фона закрывает щель между вкладками и шапкой чата. */
+  box-shadow: var(--shadow), 0 -14px 0 4px var(--bg);
+}
+
+.chat-head-text {
+  min-width: 0;
+}
+
+.chat-head-text b,
+.chat-head-text span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-head-text span {
+  font-size: 13px;
+}
+
+.chip-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.day-sep {
+  align-self: center;
+  margin: 10px 0 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--field);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bubble {
+  position: relative;
+  max-width: min(85%, 560px);
+  align-self: flex-start;
+  padding: 8px 12px 6px;
+  border-radius: 16px 16px 16px 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}
+
+.bubble.out {
+  align-self: flex-end;
+  border-radius: 16px 16px 6px 16px;
+  background: var(--accent-soft);
+}
+
+.bubble.deleted {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.bubble-who {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bubble-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mark {
+  font-weight: 600;
+}
+
+.mark.deleted {
+  color: var(--danger);
+}
+
+.mark.edited {
+  color: var(--accent);
+}
+
+.bubble details {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+  font-size: 13.5px;
+}
+
+.bubble summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  list-style: none;
+}
+
+.bubble summary::-webkit-details-marker {
+  display: none;
+}
+
+.version {
+  margin: 6px 0 0;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+  white-space: pre-wrap;
+}
+
+.version time {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.media-img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 2px 0 4px;
+  border-radius: 12px;
+  background: var(--field);
+}
+
+.media-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--field);
+  font-size: 14px;
+}
+
+.media-chip span {
+  flex: 1;
+}
+
+.media-chip .act {
+  height: 30px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.deleted-card .card-text {
+  margin-top: 4px;
+}
+
+.deleted-card .meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.deleted-card .meta b {
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (prefers-reduced-motion: reduce) {

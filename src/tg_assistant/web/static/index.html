@@ -66,6 +66,9 @@
     <button class="tab" role="tab" id="tab-reminders" data-tab="reminders" aria-controls="panel-reminders" aria-selected="false">
       Напоминания <span class="count" id="count-reminders"></span>
     </button>
+    <button class="tab" role="tab" id="tab-archive" data-tab="archive" aria-controls="panel-archive" aria-selected="false">
+      Архив <span class="count alert" id="count-archive"></span>
+    </button>
     <span class="tab-thumb" aria-hidden="true"></span>
   </nav>
 
@@ -93,6 +96,65 @@
       <div class="chips" id="chips" aria-label="Быстрый выбор времени"></div>
       <div id="reminders" class="list" aria-live="polite"></div>
     </section>
+
+    <section class="panel" id="panel-archive" role="tabpanel" aria-labelledby="tab-archive">
+      <h2 class="panel-title">Архив чатов</h2>
+
+      <div id="archive-home">
+        <div class="card archive-status" id="archive-status">
+          <div class="archive-status-head">
+            <span class="status-dot" id="archive-dot" aria-hidden="true"></span>
+            <b id="archive-state">Архив чатов</b>
+          </div>
+          <div class="archive-counts" id="archive-counts"></div>
+          <ol class="steps archive-steps" id="archive-setup" hidden>
+            <li>В @BotFather: Bot Settings → Business Mode → Turn on</li>
+            <li>В Telegram: Настройки → Telegram Business → Чат-боты</li>
+            <li>Выберите этого бота и чаты (нужен Telegram Premium)</li>
+          </ol>
+          <div class="archive-toggles">
+            <label class="switch">
+              <input type="checkbox" id="notify-edits">
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="switch-label">Сообщать об изменённых</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="notify-deletes">
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="switch-label">Сообщать об удалённых</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="segmented" role="tablist" aria-label="Архив">
+          <button type="button" role="tab" data-view="chats" aria-selected="true">Чаты</button>
+          <button type="button" role="tab" data-view="deleted" aria-selected="false">Удалённые <span class="count alert" id="count-deleted"></span></button>
+        </div>
+        <label class="search">
+          <span class="search-icon" aria-hidden="true"></span>
+          <input id="archive-search" type="search" placeholder="Найти чат" autocomplete="off" aria-label="Найти чат">
+        </label>
+        <div id="archive-list" class="list" aria-live="polite"></div>
+      </div>
+
+      <div id="archive-chat" hidden>
+        <div class="chat-head">
+          <button class="icon-btn" type="button" id="chat-back" aria-label="Назад к чатам" title="Назад"></button>
+          <div class="avatar small" id="chat-avatar" aria-hidden="true"></div>
+          <div class="chat-head-text">
+            <b id="chat-title"></b>
+            <span class="muted" id="chat-sub"></span>
+          </div>
+        </div>
+        <div class="chip-row" id="chat-filters" role="group" aria-label="Фильтр сообщений">
+          <button class="chip" type="button" data-filter="all" aria-pressed="true">Все</button>
+          <button class="chip" type="button" data-filter="edited" aria-pressed="false">Изменённые</button>
+          <button class="chip" type="button" data-filter="deleted" aria-pressed="false">Удалённые</button>
+        </div>
+        <button class="btn ghost more" id="chat-more" type="button" hidden>Показать раньше</button>
+        <div id="chat-messages" class="thread" aria-live="polite"></div>
+      </div>
+    </section>
   </main>
 
   <footer class="footer muted" id="footer"></footer>
@@ -114,6 +176,7 @@
 <div id="splash" class="splash" aria-label="Загрузка"><span class="spinner"></span></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script src="/static/archive.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

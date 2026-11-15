@@ -362,3 +362,44 @@ async def test_purge_removes_old_messages_and_their_edits(session_factory):
         assert await repo.purge_older_than(session, 30, now=T0) == 1
         assert [r.message_id for r in await session.scalars(select(ArchivedMessage))] == [2]
         assert await session.scalar(select(func.count()).select_from(MessageEdit)) == 0
+
+
+# --- кнопки мини-приложения -------------------------------------------------
+
+
+@pytest.fixture
+def dp_app(session_factory, monkeypatch):
+    from tg_assistant.bot import create_dispatcher
+    from tg_assistant.config import Settings
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "42:TEST")
+    monkeypatch.setenv("ALLOWED_USER_IDS", str(ALLOWED_ID))
+    monkeypatch.setenv("WEB_APP_URL", "https://bot.example.com")
+    return create_dispatcher(Settings(_env_file=None), session_factory)
+
+
+async def test_notifications_open_the_chat_in_mini_app(bot, dp_app):
+    await dp_app.feed_update(bot, connection_update())
+    bot.calls.reset_mock()
+    await dp_app.feed_update(bot, biz_message(70, "было"))
+    await dp_app.feed_update(bot, biz_message(70, "стало", edited=True))
+    await dp_app.feed_update(bot, deleted(70))
+
+    edit_msg, delete_msg = sent_methods(bot, SendMessage)
+    for msg in (edit_msg, delete_msg):
+        button = msg.reply_markup.inline_keyboard[0][0]
+        assert button.web_app.url == f"https://bot.example.com/?open=archive&chat={FRIEND.id}"
+
+
+async def test_notifications_without_https_have_no_app_button(bot, dp, connected):
+    await dp.feed_update(bot, biz_message(71, "было"))
+    await dp.feed_update(bot, biz_message(71, "стало", edited=True))
+    (msg,) = sent_methods(bot, SendMessage)
+    assert msg.reply_markup is None
+
+
+async def test_archive_command_offers_mini_app(bot, dp_app):
+    await dp_app.feed_update(bot, update_from(ALLOWED_ID, "/archive"))
+    (msg,) = sent_methods(bot, SendMessage)
+    first = msg.reply_markup.inline_keyboard[0][0]
+    assert first.web_app.url == "https://bot.example.com/?open=archive"

@@ -62,6 +62,11 @@ async def setup_bot_profile(bot: Bot, settings: Settings) -> None:
             f"short description ({language or 'default'})",
             bot.set_my_short_description(text, language_code=language),
         )
+    await setup_menu_button(bot, settings)
+
+
+async def setup_menu_button(bot: Bot, settings: Settings) -> None:
+    """Кнопка слева от поля ввода: мини-приложение при HTTPS-адресе, иначе список команд."""
     if settings.mini_app_enabled:
         button = MenuButtonWebApp(
             text=MENU_BUTTON_TEXT, web_app=WebAppInfo(url=settings.web_app_url)

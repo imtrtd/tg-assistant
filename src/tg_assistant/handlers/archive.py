@@ -8,10 +8,17 @@ from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import BufferedInputFile, CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import Settings
 from ..db import ArchivedMessage, User
 from ..db import archive as repo
 from ..db.archive import MEDIA_LABELS
@@ -40,8 +47,13 @@ def _local(value: datetime, tz: str) -> datetime:
     return value.astimezone(ZoneInfo(tz))
 
 
-def _status_markup(user: User) -> InlineKeyboardMarkup:
+def _status_markup(user: User, settings: Settings) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
+    if settings.mini_app_enabled:
+        kb.button(
+            text="📱 Открыть в приложении",
+            web_app=WebAppInfo(url=settings.app_url(open="archive")),
+        )
     kb.button(
         text=f"{'✅' if user.notify_edits else '⬜'} Сообщать об изменениях",
         callback_data=ArchCb(action="edits"),
@@ -64,13 +76,21 @@ async def _status_text(session: AsyncSession, user: User) -> str:
     return text
 
 
-async def cmd_archive(message: Message, session: AsyncSession, user: User):
+async def cmd_archive(message: Message, session: AsyncSession, user: User, settings: Settings):
     await message.answer(
-        await _status_text(session, user), reply_markup=_status_markup(user), parse_mode="HTML"
+        await _status_text(session, user),
+        reply_markup=_status_markup(user, settings),
+        parse_mode="HTML",
     )
 
 
-async def on_toggle(query: CallbackQuery, callback_data: ArchCb, session: AsyncSession, user: User):
+async def on_toggle(
+    query: CallbackQuery,
+    callback_data: ArchCb,
+    session: AsyncSession,
+    user: User,
+    settings: Settings,
+):
     if callback_data.action == "edits":
         user.notify_edits = not user.notify_edits
     else:
@@ -80,7 +100,7 @@ async def on_toggle(query: CallbackQuery, callback_data: ArchCb, session: AsyncS
         try:
             await query.message.edit_text(
                 await _status_text(session, user),
-                reply_markup=_status_markup(user),
+                reply_markup=_status_markup(user, settings),
                 parse_mode="HTML",
             )
         except TelegramBadRequest as exc:

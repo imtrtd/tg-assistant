@@ -5,12 +5,13 @@ import logging
 from aiogram import Bot, Dispatcher
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .branding import setup_bot_profile
+from .branding import setup_bot_profile, setup_menu_button
 from .config import Settings
 from .handlers import build_router, on_error
 from .middlewares import AccessMiddleware, DbMiddleware
 from .reminders.scheduler import run_scheduler
 from .web import LoginTokens, create_web_app, start_web_server
+from .web.tunnel import wait_for_tunnel_url, watch_tunnel
 
 logger = logging.getLogger(__name__)
 
@@ -35,18 +36,46 @@ async def _on_startup(
     settings: Settings,
     login_tokens: LoginTokens,
 ) -> None:
+    if settings.web_server_enabled:
+        app = create_web_app(settings, session_factory, login_tokens, bot)
+        dispatcher["web_runner"] = await start_web_server(app, settings.web_host, settings.web_port)
+    if settings.web_tunnel_metrics_url:
+        await _connect_tunnel(bot, dispatcher, settings)
     await setup_bot_profile(bot, settings)
     me = await bot.get_me()
     logger.info("Bot @%s started", me.username)
     dispatcher["scheduler_task"] = asyncio.create_task(
         run_scheduler(bot, session_factory, archive_retention_days=settings.archive_retention_days)
     )
-    if settings.web_enabled:
-        app = create_web_app(settings, session_factory, login_tokens)
-        dispatcher["web_runner"] = await start_web_server(app, settings.web_host, settings.web_port)
+
+
+async def _connect_tunnel(bot: Bot, dispatcher: Dispatcher, settings: Settings) -> None:
+    """Получить адрес туннеля Cloudflare и следить за его сменой."""
+    url = await wait_for_tunnel_url(settings.web_tunnel_metrics_url)
+    if url:
+        settings.web_app_url = url
+        logger.info("Mini App is available at %s", url)
+    else:
+        logger.error(
+            "Tunnel address not received from %s; Mini App stays off until it appears",
+            settings.web_tunnel_metrics_url,
+        )
+
+    async def on_change(new_url: str) -> None:
+        settings.web_app_url = new_url
+        await setup_menu_button(bot, settings)
+
+    dispatcher["tunnel_task"] = asyncio.create_task(
+        watch_tunnel(settings.web_tunnel_metrics_url, lambda: settings.web_app_url, on_change)
+    )
 
 
 async def _on_shutdown(dispatcher: Dispatcher) -> None:
+    tunnel_task: asyncio.Task | None = dispatcher.workflow_data.pop("tunnel_task", None)
+    if tunnel_task is not None:
+        tunnel_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await tunnel_task
     runner = dispatcher.workflow_data.pop("web_runner", None)
     if runner is not None:
         await runner.cleanup()
