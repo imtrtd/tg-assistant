@@ -36,6 +36,7 @@ from ..texts import (
     message_edited,
 )
 from ..topics import ARCHIVE, DELETED, topic_kind
+from .mention import handle_business_mention
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +111,12 @@ async def on_business_message(
     message: Message, bot: Bot, session: AsyncSession, settings: Settings
 ):
     owner = await resolve_owner(bot, session, settings, message.business_connection_id)
-    if owner is not None:
-        await repo.store(session, owner.id, message)
+    if owner is None:
+        return
+    # «@бот текст» от владельца — это команда «сохранить в заметки», а не переписка.
+    if await handle_business_mention(message, bot, session, owner):
+        return
+    await repo.store(session, owner.id, message)
 
 
 async def on_edited_business_message(
