@@ -18,6 +18,7 @@ from ..db.archive import purge_older_than
 from ..db.digest import build_digest, due_digests, next_digest_at
 from ..db.reminders import due_reminders
 from ..texts import reminder_fired
+from ..topics import REMINDERS, topic_kind
 from .keyboards import fired_keyboard
 from .timeparse import next_occurrence
 
@@ -47,12 +48,13 @@ async def fire_due(
     async with session_factory() as session:
         for reminder, tz_name in await due_reminders(session, now):
             try:
-                await bot.send_message(
-                    reminder.user_id,
-                    reminder_fired(reminder.text),
-                    reply_markup=fired_keyboard(reminder),
-                    parse_mode="HTML",
-                )
+                with topic_kind(REMINDERS):
+                    await bot.send_message(
+                        reminder.user_id,
+                        reminder_fired(reminder.text),
+                        reply_markup=fired_keyboard(reminder),
+                        parse_mode="HTML",
+                    )
             except TelegramForbiddenError:
                 logger.info(
                     "User %s blocked the bot, disabling reminder %s", reminder.user_id, reminder.id
@@ -78,7 +80,8 @@ async def fire_digests(
         for user in await due_digests(session, now):
             try:
                 text = await build_digest(session, user, now)
-                await bot.send_message(user.id, text, parse_mode="HTML")
+                with topic_kind(REMINDERS):
+                    await bot.send_message(user.id, text, parse_mode="HTML")
             except TelegramForbiddenError:
                 logger.info("User %s blocked the bot, disabling digest", user.id)
                 user.digest_time = None

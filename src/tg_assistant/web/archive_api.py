@@ -15,6 +15,7 @@ from ..archive_delivery import resend_archived
 from ..db import ArchivedMessage, MessageEdit
 from ..db import archive as repo
 from ..db.archive import MEDIA_LABELS
+from ..topics import ARCHIVE, DELETED, topic_kind
 from .api import _body
 from .keys import BOT, DB, USER
 
@@ -173,7 +174,8 @@ async def send_to_telegram(request: web.Request) -> web.Response:
     if bot is None:
         return _error(503, "Бот недоступен")
     try:
-        await resend_archived(bot, request[USER].id, row)
+        with topic_kind(DELETED if row.deleted_at else ARCHIVE):
+            await resend_archived(bot, request[USER].id, row)
     except TelegramAPIError:
         logger.exception("Failed to resend archived message %s", row.id)
         return _error(502, "Telegram не принял сообщение, попробуйте позже")

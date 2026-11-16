@@ -35,6 +35,7 @@ from ..texts import (
     deleted_batch_unknown,
     message_edited,
 )
+from ..topics import ARCHIVE, DELETED, topic_kind
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,8 @@ async def on_connection(
     await get_or_create_user(session, owner, settings.default_timezone)
     text = BUSINESS_ON if connection.is_enabled else BUSINESS_OFF
     try:
-        await bot.send_message(connection.user_chat_id, text, parse_mode="HTML")
+        with topic_kind(ARCHIVE):
+            await bot.send_message(connection.user_chat_id, text, parse_mode="HTML")
     except TelegramAPIError:
         logger.exception("Failed to notify owner %s about business connection", owner.id)
 
@@ -124,9 +126,10 @@ async def on_edited_business_message(
         return
     text = message_edited(_where(row), _short(result.old_text), _short(row.text))
     try:
-        await bot.send_message(
-            owner.id, text, parse_mode="HTML", reply_markup=_open_chat(settings, row.chat_id)
-        )
+        with topic_kind(ARCHIVE):
+            await bot.send_message(
+                owner.id, text, parse_mode="HTML", reply_markup=_open_chat(settings, row.chat_id)
+            )
     except TelegramAPIError:
         logger.exception("Failed to notify %s about edited message", owner.id)
 
@@ -171,14 +174,15 @@ async def on_deleted_business_messages(
     if missing:
         lines.append(deleted_batch_unknown(missing))
     try:
-        await bot.send_message(
-            owner.id,
-            "\n".join(lines).strip(),
-            parse_mode="HTML",
-            reply_markup=_open_chat(settings, event.chat.id),
-        )
-        for row in incoming[:SHOW_DELETED]:
-            await _resend_media(bot, owner.id, row)
+        with topic_kind(DELETED):
+            await bot.send_message(
+                owner.id,
+                "\n".join(lines).strip(),
+                parse_mode="HTML",
+                reply_markup=_open_chat(settings, event.chat.id),
+            )
+            for row in incoming[:SHOW_DELETED]:
+                await _resend_media(bot, owner.id, row)
     except TelegramAPIError:
         logger.exception("Failed to notify %s about deleted messages", owner.id)
 
