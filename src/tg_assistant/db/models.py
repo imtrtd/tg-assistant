@@ -143,3 +143,17 @@ class MessageEdit(Base):
     )
     text: Mapped[str | None] = mapped_column(Text)
     replaced_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class UserTopic(Base):
+    """Постоянная тема в личном чате с ботом (режим тем Telegram)."""
+
+    __tablename__ = "user_topics"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    thread_id: Mapped[int] = mapped_column(BigInteger)
+    # Закреплённое сообщение темы (у «Приложения» — с кнопкой мини-приложения).
+    message_id: Mapped[int | None] = mapped_column(BigInteger)

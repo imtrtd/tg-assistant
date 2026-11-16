@@ -7,6 +7,7 @@ from .models import (
     Note,
     Reminder,
     User,
+    UserTopic,
 )
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "Note",
     "Reminder",
     "User",
+    "UserTopic",
     "create_engine",
     "create_session_factory",
     "run_migrations",

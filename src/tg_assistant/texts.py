@@ -8,7 +8,7 @@ import html
 from aiogram.types import BotCommand
 
 # Команды, которые имеют смысл только в личке: архив и одноразовая ссылка в браузер.
-PRIVATE_ONLY = frozenset({"archive", "chats", "deleted", "web"})
+PRIVATE_ONLY = frozenset({"archive", "chats", "deleted", "web", "topics"})
 
 COMMAND_SPECS: tuple[tuple[str, str], ...] = (
     ("start", "Главное меню"),
@@ -27,6 +27,7 @@ COMMAND_SPECS: tuple[tuple[str, str], ...] = (
     ("deleted", "Удалённые сообщения"),
     ("app", "Мини-приложение"),
     ("web", "Вход в браузере"),
+    ("topics", "Пересоздать темы"),
     ("help", "Справка и команды"),
 )
 
