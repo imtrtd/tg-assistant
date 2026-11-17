@@ -2,7 +2,7 @@ from typing import Annotated, Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///data/bot.db"
@@ -34,7 +34,16 @@ class Settings(DatabaseSettings):
     # публичный HTTPS-адрес быстрого туннеля Cloudflare и подставляет его в WEB_APP_URL.
     web_tunnel_metrics_url: str = ""
     web_host: str = "0.0.0.0"
-    web_port: int = 8080
+    # PORT — так порт передают хостинги (Railway, Render, Fly.io).
+    web_port: int = Field(8080, validation_alias=AliasChoices("WEB_PORT", "PORT", "web_port"))
+    # Домен, который Railway выдаёт сервису. Если WEB_APP_URL не задан, адрес берётся отсюда.
+    railway_public_domain: str = ""
+
+    @model_validator(mode="after")
+    def _railway_url(self) -> "Settings":
+        if not self.web_app_url and self.railway_public_domain:
+            self.web_app_url = f"https://{self.railway_public_domain.strip().rstrip('/')}"
+        return self
 
     @field_validator("web_app_url")
     @classmethod
