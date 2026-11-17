@@ -61,6 +61,8 @@ async def _on_startup(
     await setup_bot_profile(bot, settings)
     me = await bot.get_me()
     logger.info("Bot @%s started", me.username)
+    if not settings.bot_username and me.username:
+        settings.bot_username = me.username  # веб-страница рисует по нему кнопку входа
     # Режим тем в личке включается в @BotFather; тогда раскладываем всё по постоянным темам.
     topics.enabled = me.has_topics_enabled is True
     if topics.enabled:

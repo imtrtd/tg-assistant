@@ -43,7 +43,7 @@ async def cmd_web(message: Message, settings: Settings, login_tokens: LoginToken
     # Токен в части после # не уходит на сервер при открытии и не попадает в логи прокси.
     url = f"{settings.web_app_url}/#login={login_tokens.issue(user.id)}"
     await message.answer(
-        web_link(url, LOGIN_TOKEN_TTL // 60),
+        web_link(url, LOGIN_TOKEN_TTL // 60, settings.web_app_url),
         parse_mode="HTML",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
