@@ -11,11 +11,10 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install .
 
-# База SQLite лежит в /app/data — этот каталог монтируется как том.
+# База SQLite лежит в /app/data — сюда монтируется том (docker-compose, Railway).
 RUN useradd --create-home --uid 1000 bot \
     && mkdir -p /app/data \
     && chown -R bot:bot /app
 USER bot
-VOLUME ["/app/data"]
 
 CMD ["python", "-m", "tg_assistant"]

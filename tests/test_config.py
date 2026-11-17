@@ -22,3 +22,26 @@ def test_allowed_ids_empty_by_default(monkeypatch):
 def test_invalid_timezone_rejected(monkeypatch):
     with pytest.raises(ValidationError):
         make(monkeypatch, DEFAULT_TIMEZONE="Mars/Olympus")
+
+
+def test_port_from_hosting_env(monkeypatch):
+    monkeypatch.delenv("WEB_PORT", raising=False)
+    assert make(monkeypatch, PORT="9000").web_port == 9000
+
+
+def test_web_port_wins_over_port(monkeypatch):
+    assert make(monkeypatch, PORT="9000", WEB_PORT="8081").web_port == 8081
+
+
+def test_railway_domain_becomes_web_app_url(monkeypatch):
+    monkeypatch.delenv("WEB_APP_URL", raising=False)
+    settings = make(monkeypatch, RAILWAY_PUBLIC_DOMAIN="bot.up.railway.app")
+    assert settings.web_app_url == "https://bot.up.railway.app"
+    assert settings.mini_app_enabled
+
+
+def test_explicit_web_app_url_wins_over_railway(monkeypatch):
+    settings = make(
+        monkeypatch, RAILWAY_PUBLIC_DOMAIN="bot.up.railway.app", WEB_APP_URL="https://my.example"
+    )
+    assert settings.web_app_url == "https://my.example"
