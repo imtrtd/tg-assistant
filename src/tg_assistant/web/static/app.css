@@ -695,6 +695,26 @@ code {
   font-size: 15px;
 }
 
+.gate-login {
+  margin-top: 20px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.gate-widget {
+  min-height: 40px;
+}
+
+.gate-open {
+  text-decoration: none;
+}
+
+.gate-or {
+  margin: 6px 0 -8px;
+  font-size: 13px;
+}
+
 .steps {
   margin: 20px 0 0;
   padding: 0;

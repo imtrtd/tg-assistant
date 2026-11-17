@@ -361,10 +361,13 @@ APP_INTRO = "<b>Заметки и напоминания</b> в одном ок�
 WEB_PRIVATE_ONLY = "<b>Ссылку для входа</b> пришлю только в личном чате."
 
 
-def web_link(url: str, minutes: int) -> str:
+def web_link(url: str, minutes: int, home: str) -> str:
     return (
         f"<b>Ссылка для входа в браузере</b>\n{url}\n\n"
-        f"Действует {minutes} минут и только один раз. Никому её не пересылайте."
+        f"Действует {minutes} минут и только один раз. Никому её не пересылайте.\n\n"
+        f"Постоянный адрес: {home}\n"
+        "Там можно войти кнопкой «Войти через Telegram», если домен указан "
+        "в @BotFather (/setdomain)."
     )
 
 

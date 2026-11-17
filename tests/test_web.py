@@ -350,3 +350,64 @@ async def test_settings_update_timezone_and_digest(client, session_factory, user
 async def test_settings_validation(client, users, payload):
     response = await client.put("/api/settings", json=payload, headers=tma(ANYA))
     assert response.status == 400
+
+
+def widget_params(user_id: int, *, auth_date: float | None = None, token: str = TOKEN) -> dict:
+    """Данные Telegram Login Widget, подписанные так же, как это делает Telegram."""
+    data = {
+        "id": str(user_id),
+        "first_name": "Аня",
+        "username": "anya",
+        "auth_date": str(int(auth_date or time.time())),
+    }
+    check = "\n".join(f"{key}={value}" for key, value in sorted(data.items()))
+    secret = hashlib.sha256(token.encode()).digest()
+    data["hash"] = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    return data
+
+
+async def test_login_widget_sets_session(client):
+    resp = await client.get("/auth/telegram", params=widget_params(ANYA), allow_redirects=False)
+    assert resp.status == 302
+    assert resp.headers["Location"] == "/"
+    cookie = resp.cookies[SESSION_COOKIE]
+    assert cookie["httponly"] and cookie["secure"]
+    # Cookie помечена Secure, тестовый клиент работает по http — передаём её явно.
+    me = await client.get("/api/me", cookies={SESSION_COOKIE: cookie.value})
+    assert me.status == 200
+    assert (await me.json())["first_name"] == "Аня"
+
+
+async def test_login_widget_rejects_bad_hash(client):
+    params = widget_params(ANYA)
+    params["id"] = str(BORIS)
+    resp = await client.get("/auth/telegram", params=params, allow_redirects=False)
+    assert resp.headers["Location"] == "/#auth=invalid"
+    assert SESSION_COOKIE not in resp.cookies
+
+
+async def test_login_widget_rejects_stale_auth(client):
+    params = widget_params(ANYA, auth_date=time.time() - 2 * 24 * 3600)
+    resp = await client.get("/auth/telegram", params=params, allow_redirects=False)
+    assert resp.headers["Location"] == "/#auth=invalid"
+
+
+async def test_login_widget_rejects_stranger(client):
+    resp = await client.get("/auth/telegram", params=widget_params(STRANGER), allow_redirects=False)
+    assert resp.headers["Location"] == f"/#auth=denied-{STRANGER}"
+    assert SESSION_COOKIE not in resp.cookies
+
+
+async def test_login_options(client, settings):
+    resp = await client.get("/api/login-options")
+    assert resp.status == 200
+    assert await resp.json() == {"bot_username": None}
+    settings.bot_username = "TG_auto_helper_bot"
+    assert (await (await client.get("/api/login-options")).json()) == {
+        "bot_username": "TG_auto_helper_bot"
+    }
+
+
+async def test_csp_allows_login_widget_frame(client):
+    resp = await client.get("/")
+    assert "frame-src https://oauth.telegram.org" in resp.headers["Content-Security-Policy"]

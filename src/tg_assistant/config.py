@@ -33,6 +33,8 @@ class Settings(DatabaseSettings):
     # Адрес метрик cloudflared (например http://cloudflared:2000). Если задан, бот сам узнаёт
     # публичный HTTPS-адрес быстрого туннеля Cloudflare и подставляет его в WEB_APP_URL.
     web_tunnel_metrics_url: str = ""
+    # Имя бота без @ — для кнопки «Войти через Telegram». Пусто — бот узнаёт его сам при старте.
+    bot_username: str = ""
     web_host: str = "0.0.0.0"
     # PORT — так порт передают хостинги (Railway, Render, Fly.io).
     web_port: int = Field(8080, validation_alias=AliasChoices("WEB_PORT", "PORT", "web_port"))

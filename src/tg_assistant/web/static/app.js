@@ -455,6 +455,50 @@ function showGate(error) {
   $("gate-title").textContent = title;
   $("gate-text").textContent = text;
   $("gate-steps").hidden = denied || inTelegram;
+  if (!denied && !inTelegram) showLoginWidget(!error || error.status === 401);
+}
+
+// Кнопка «Войти через Telegram»: работает на постоянном адресе, если домен указан
+// в @BotFather (/setdomain). Telegram вернёт пользователя на /auth/telegram.
+async function showLoginWidget(replaceText) {
+  let options;
+  try {
+    options = await api("GET", "/api/login-options");
+  } catch {
+    return;
+  }
+  const bot = options && options.bot_username;
+  if (!bot || !/^\w{3,64}$/.test(bot)) return;
+  if (replaceText) {
+    $("gate-text").textContent = "Войдите через Telegram — достаточно подтвердить вход в приложении.";
+  }
+  $("gate-open-app").href = `https://t.me/${bot}?startapp`;
+  const host = $("gate-widget");
+  if (!host.firstChild) {
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.dataset.telegramLogin = bot;
+    script.dataset.size = "large";
+    script.dataset.radius = "12";
+    script.dataset.authUrl = `${location.origin}/auth/telegram`;
+    host.appendChild(script);
+  }
+  $("gate-login").hidden = false;
+}
+
+// Ответ /auth/telegram, если войти не удалось: #auth=invalid или #auth=denied-<id>.
+function loginWidgetError() {
+  const match = location.hash.match(/^#auth=(invalid|denied-(\d+))$/);
+  if (!match) return null;
+  history.replaceState(null, "", location.pathname + location.search);
+  const error = new Error(
+    match[2]
+      ? `Доступ закрыт. Ваш Telegram id: ${match[2]}`
+      : "Telegram не подтвердил вход. Попробуйте ещё раз.",
+  );
+  error.status = match[2] ? 403 : 400;
+  return error;
 }
 
 function renderHeader() {
@@ -638,6 +682,11 @@ async function start() {
     }
   }
 
+  const widgetError = loginWidgetError();
+  if (widgetError) {
+    showGate(widgetError);
+    return;
+  }
   try {
     await redeemLoginLink();
     state.me = await api("GET", "/api/me");

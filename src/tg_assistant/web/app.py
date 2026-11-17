@@ -10,7 +10,14 @@ from ..config import Settings
 from ..db import User
 from ..db.users import get_or_create_user
 from . import api, archive_api
-from .auth import SESSION_COOKIE, LoginTokens, SessionSigner, parse_init_data
+from .auth import (
+    SESSION_COOKIE,
+    SESSION_TTL,
+    LoginTokens,
+    SessionSigner,
+    parse_init_data,
+    parse_login_widget,
+)
 from .keys import BOT, DB, LOGIN_TOKENS, SESSION_FACTORY, SETTINGS, SIGNER, USER
 
 logger = logging.getLogger(__name__)
@@ -20,10 +27,11 @@ MAX_BODY = 64 * 1024
 
 CSP = (
     "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; "
-    "img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; "
+    "img-src 'self' data: blob:; connect-src 'self'; frame-src https://oauth.telegram.org; "
+    "base-uri 'none'; form-action 'none'; "
     "frame-ancestors https://web.telegram.org https://*.telegram.org"
 )
-PUBLIC_API = {"/api/login", "/api/logout"}
+PUBLIC_API = {"/api/login", "/api/logout", "/api/login-options"}
 
 
 def json_error(status: int, message: str) -> web.Response:
@@ -92,6 +100,32 @@ async def index(request: web.Request) -> web.FileResponse:
     return web.FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
+async def telegram_login(request: web.Request) -> web.Response:
+    """Сюда Telegram Login Widget возвращает пользователя после «Войти через Telegram»."""
+    settings = request.app[SETTINGS]
+    tg_user = parse_login_widget(
+        settings.telegram_bot_token.get_secret_value(), dict(request.query)
+    )
+    if tg_user is None:
+        raise web.HTTPFound("/#auth=invalid")
+    if tg_user.id not in settings.allowed_user_ids:
+        raise web.HTTPFound(f"/#auth=denied-{tg_user.id}")
+    async with request.app[SESSION_FACTORY]() as session:
+        await get_or_create_user(session, tg_user, settings.default_timezone)
+    response = web.HTTPFound("/")
+    response.set_cookie(
+        SESSION_COOKIE,
+        request.app[SIGNER].dumps(tg_user.id),
+        max_age=SESSION_TTL,
+        httponly=True,
+        samesite="Lax",
+        secure=settings.web_app_url.startswith("https://"),
+        path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    raise response
+
+
 def create_web_app(
     settings: Settings,
     session_factory: async_sessionmaker[AsyncSession],
@@ -106,6 +140,7 @@ def create_web_app(
     if bot is not None:
         app[BOT] = bot
     app.router.add_get("/", index)
+    app.router.add_get("/auth/telegram", telegram_login)
     app.router.add_static("/static/", STATIC_DIR)
     api.setup_routes(app)
     archive_api.setup_routes(app)

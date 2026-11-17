@@ -3,8 +3,9 @@
 Два способа:
 - мини-приложение Telegram присылает подписанную строку initData в заголовке
   `Authorization: tma <initData>`;
-- в обычном браузере — одноразовая ссылка от бота (команда /web), которая
-  обменивается на подписанную cookie сессии.
+- в обычном браузере — кнопка «Войти через Telegram» (Telegram Login Widget) на
+  постоянном адресе или одноразовая ссылка от бота (команда /web). Оба обмениваются
+  на подписанную cookie сессии.
 """
 
 import hashlib
@@ -19,6 +20,39 @@ SESSION_COOKIE = "tga_session"
 SESSION_TTL = 30 * 24 * 3600
 LOGIN_TOKEN_TTL = 10 * 60
 INIT_DATA_TTL = 24 * 3600
+LOGIN_WIDGET_TTL = 24 * 3600
+LOGIN_WIDGET_FIELDS = {"id", "first_name", "last_name", "username", "photo_url", "auth_date"}
+
+
+@dataclass(frozen=True)
+class WidgetUser:
+    id: int
+    first_name: str
+    username: str | None
+
+
+def parse_login_widget(
+    bot_token: str, params: dict[str, str], now: float | None = None
+) -> WidgetUser | None:
+    """Проверить данные Telegram Login Widget (core.telegram.org/widgets/login)."""
+    received = params.get("hash", "")
+    fields = {k: v for k, v in params.items() if k in LOGIN_WIDGET_FIELDS}
+    if not received or "id" not in fields or "auth_date" not in fields:
+        return None
+    check = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
+    secret = hashlib.sha256(bot_token.encode()).digest()
+    expected = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, received):
+        return None
+    if not (fields["id"].isdigit() and fields["auth_date"].isdigit()):
+        return None
+    if (now or time.time()) - int(fields["auth_date"]) > LOGIN_WIDGET_TTL:
+        return None
+    return WidgetUser(
+        id=int(fields["id"]),
+        first_name=fields.get("first_name") or "",
+        username=fields.get("username") or None,
+    )
 
 
 class LoginTokens:

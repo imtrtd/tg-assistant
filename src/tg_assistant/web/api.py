@@ -113,6 +113,12 @@ async def login(request: web.Request) -> web.Response:
     return response
 
 
+async def login_options(request: web.Request) -> web.Response:
+    """Что показать на странице входа: имя бота для кнопки «Войти через Telegram»."""
+    username = request.app[SETTINGS].bot_username.lstrip("@")
+    return web.json_response({"bot_username": username or None})
+
+
 async def logout(request: web.Request) -> web.Response:
     response = web.json_response({"ok": True})
     response.del_cookie(SESSION_COOKIE, path="/")
@@ -219,6 +225,7 @@ def setup_routes(app: web.Application) -> None:
     r = app.router
     r.add_post("/api/login", login)
     r.add_post("/api/logout", logout)
+    r.add_get("/api/login-options", login_options)
     r.add_get("/api/me", me)
     r.add_put("/api/settings", update_settings)
     r.add_get("/api/notes", list_notes)
