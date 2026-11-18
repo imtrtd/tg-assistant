@@ -106,7 +106,9 @@ Telegram-ассистент: бот, который помогает автом�
 ## Запуск на сервере
 
 Без своего компьютера, из браузера: [docs/railway.md](docs/railway.md) (Railway, сборка из GitHub).
-Docker и скрипты для VPS: см. [docs/deploy.md](docs/deploy.md). Локально в Docker:
+Docker и скрипты для VPS: см. [docs/deploy.md](docs/deploy.md).
+Два экземпляра (ПК + облако) на общей базе Postgres, чтобы бот работал при выключенном
+компьютере: [docs/failover.md](docs/failover.md). Локально в Docker:
 
 ```bash
 docker compose up -d --build
