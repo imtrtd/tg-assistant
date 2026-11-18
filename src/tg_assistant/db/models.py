@@ -172,3 +172,12 @@ class ClusterNode(Base):
     priority: Mapped[int] = mapped_column(default=0)
     is_leader: Mapped[bool] = mapped_column(Boolean, default=False)
     seen_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class AppState(Base):
+    """Служебные значения, общие для всех узлов (например, время последнего бэкапа)."""
+
+    __tablename__ = "app_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)

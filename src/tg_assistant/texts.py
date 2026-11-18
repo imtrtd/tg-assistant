@@ -445,3 +445,8 @@ def admin_error(update_id: int, exc_type: str, exc_text: str, trace: str) -> str
         f"<code>{html.escape(exc_type)}: {html.escape(exc_text)}</code>\n\n"
         f"<pre>{trace}</pre>"
     )
+
+
+def bot_started(node_name: str) -> str:
+    """Администраторам: узел начал работу (после запуска или переключения ПК ↔ облако)."""
+    return f"🟢 Бот работает на узле <code>{html.escape(node_name)}</code>."

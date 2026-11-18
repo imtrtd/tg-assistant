@@ -7,6 +7,7 @@ from pydantic import AliasChoices, Field, SecretStr, field_validator, model_vali
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///data/bot.db"
+DEFAULT_HEARTBEAT_FILE = "data/heartbeat"
 
 
 class DatabaseSettings(BaseSettings):
@@ -46,6 +47,11 @@ class Settings(DatabaseSettings):
     node_name: str = Field(default_factory=socket.gethostname)
     node_priority: int = 0
     leader_interval: float = 10.0
+    # Живучесть (tg_assistant.ops): файл heartbeat для HEALTHCHECK Docker, адрес проверки
+    # healthchecks.io (пингует только работающий узел) и бэкап базы админам в Telegram.
+    heartbeat_file: str = DEFAULT_HEARTBEAT_FILE
+    healthcheck_ping_url: str = ""
+    backup_interval_hours: float = 24.0
 
     @model_validator(mode="after")
     def _railway_url(self) -> "Settings":
