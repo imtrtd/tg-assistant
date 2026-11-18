@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
@@ -73,28 +74,48 @@ async def test_send_backup_to_admins(bot, session_factory):
     assert len(data["tables"]["notes"]) == 1
 
 
-async def test_backup_loop_respects_interval(bot, session_factory):
+async def _run_loop(monkeypatch, coro, iterations: int) -> None:
+    """Прогнать цикл ops ровно iterations раз и аккуратно остановить."""
+    done = asyncio.Event()
+    count = 0
+
+    async def counting_sleep(_seconds):
+        nonlocal count
+        count += 1
+        if count >= iterations:
+            done.set()
+        await asyncio.sleep(0)
+
+    monkeypatch.setattr(ops, "_sleep", counting_sleep)
+    task = asyncio.create_task(coro)
+    try:
+        async with asyncio.timeout(5):
+            await done.wait()
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+async def _run_backup_loop(monkeypatch, bot, session_factory, iterations: int) -> None:
+    loop = ops.backup_loop(bot, session_factory, {7}, "pc", interval_hours=24)
+    await _run_loop(monkeypatch, loop, iterations)
+
+
+async def test_backup_loop_respects_interval(monkeypatch, bot, session_factory):
     await _fill(session_factory)
-    task = asyncio.create_task(
-        ops.backup_loop(bot, session_factory, {7}, "pc", interval_hours=24, check_every=0.01)
-    )
-    await asyncio.sleep(0.2)
-    task.cancel()
+    await _run_backup_loop(monkeypatch, bot, session_factory, iterations=5)
     assert len(sent_methods(bot, SendDocument)) == 1  # одна копия, а не на каждой проверке
 
     async with session_factory() as session:  # прошли сутки — пора снова
         state = await session.get(AppState, ops.LAST_BACKUP_KEY)
         state.value = (datetime.now(UTC) - timedelta(hours=25)).isoformat()
         await session.commit()
-    task = asyncio.create_task(
-        ops.backup_loop(bot, session_factory, {7}, "pc", interval_hours=24, check_every=0.01)
-    )
-    await asyncio.sleep(0.2)
-    task.cancel()
+    await _run_backup_loop(monkeypatch, bot, session_factory, iterations=3)
     assert len(sent_methods(bot, SendDocument)) == 2
 
 
-async def test_ping_loop_hits_healthcheck_url():
+async def test_ping_loop_hits_healthcheck_url(monkeypatch):
     hits = []
 
     async def handler(request):
@@ -108,11 +129,11 @@ async def test_ping_loop_hits_healthcheck_url():
     site = web.TCPSite(runner, "127.0.0.1", 0)
     await site.start()
     port = site._server.sockets[0].getsockname()[1]
-    task = asyncio.create_task(ops.ping_loop(f"http://127.0.0.1:{port}/ping/abc", interval=0.05))
-    await asyncio.sleep(0.3)
-    task.cancel()
-    await runner.cleanup()
-    assert len(hits) >= 2
+    try:
+        await _run_loop(monkeypatch, ops.ping_loop(f"http://127.0.0.1:{port}/ping/abc"), 2)
+    finally:
+        await runner.cleanup()
+    assert len(hits) == 2
 
 
 async def test_notify_admins_survives_errors():

@@ -34,6 +34,8 @@ STALE_AFTER = 120.0
 PING_INTERVAL = 60.0
 BACKUP_CHECK_INTERVAL = 600.0
 LAST_BACKUP_KEY = "last_backup_at"
+# Пауза циклов; в тестах подменяется, чтобы считать итерации без реального ожидания.
+_sleep = asyncio.sleep
 # Telegram принимает от ботов файлы до 50 МБ.
 MAX_BACKUP_BYTES = 49 * 1024 * 1024
 
@@ -97,7 +99,7 @@ async def ping_loop(url: str, interval: float = PING_INTERVAL) -> None:
                         logger.warning("Healthcheck ping returned HTTP %s", response.status)
             except (aiohttp.ClientError, TimeoutError) as exc:
                 logger.warning("Healthcheck ping failed: %r", exc)
-            await asyncio.sleep(interval)
+            await _sleep(interval)
 
 
 async def notify_admins(bot: Bot, admin_ids, text: str) -> None:
@@ -174,7 +176,7 @@ async def backup_loop(
                     logger.info("Backup sent to admins")
         except Exception:
             logger.exception("Backup iteration failed")
-        await asyncio.sleep(check_every)
+        await _sleep(check_every)
 
 
 async def cancel(task: asyncio.Task | None) -> None:
