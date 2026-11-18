@@ -13,17 +13,19 @@
 обработчики и рассылки ничего не знают о темах, кроме `with topic_kind("..."):`.
 """
 
+import asyncio
 import contextlib
 import contextvars
 import html
 import logging
+import time
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
 from aiogram import BaseMiddleware, Bot
 from aiogram.client.session.middlewares.base import BaseRequestMiddleware
-from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
+from aiogram.exceptions import TelegramAPIError, TelegramBadRequest, TelegramRetryAfter
 from aiogram.methods import TelegramMethod
 from aiogram.types import (
     InlineKeyboardButton,
@@ -162,12 +164,19 @@ class TopicRegistry:
         self.session_factory = session_factory
         self.enabled = False  # включается при старте, если у бота включён режим тем
         self._cache: dict[int, dict[str, int]] = {}
+        # Апдейты одного пользователя обрабатываются параллельно: без блокировки каждый
+        # создавал бы свой набор тем. После flood control новые попытки откладываются.
+        self._locks: dict[int, asyncio.Lock] = {}
+        self._retry_at: dict[int, float] = {}
 
     async def threads(self, user_id: int) -> dict[str, int]:
         if user_id not in self._cache:
             async with self.session_factory() as session:
                 rows = await session.scalars(select(UserTopic).where(UserTopic.user_id == user_id))
-                self._cache[user_id] = {row.kind: row.thread_id for row in rows}
+                loaded = {row.kind: row.thread_id for row in rows}
+            # Параллельный апдейт мог загрузить кэш раньше: не подменяем его словарь,
+            # иначе темы, созданные через старый словарь, «потеряются».
+            self._cache.setdefault(user_id, loaded)
         return self._cache[user_id]
 
     async def thread_for(self, user_id: int, kind: str) -> int | None:
@@ -191,11 +200,24 @@ class TopicRegistry:
     async def ensure(self, bot: Bot, user_id: int, settings: Settings) -> dict[str, int]:
         """Создать недостающие темы (одна попытка на тему, ошибки — в лог)."""
         threads = await self.threads(user_id)
+        if all(spec.kind in threads for spec in TOPICS):
+            return threads
+        if time.monotonic() < self._retry_at.get(user_id, 0.0):
+            return threads  # Telegram просил подождать — темы создадим позже
+        lock = self._locks.setdefault(user_id, asyncio.Lock())
+        async with lock:
+            return await self._create_missing(bot, user_id, settings)
+
+    async def _create_missing(self, bot: Bot, user_id: int, settings: Settings) -> dict[str, int]:
+        threads = await self.threads(user_id)  # пока ждали блокировку, темы мог создать другой
         missing = [spec for spec in TOPICS if spec.kind not in threads]
-        if not missing:
+        if not missing or time.monotonic() < self._retry_at.get(user_id, 0.0):
             return threads
         async with self.session_factory() as session:
             for spec in missing:
+                thread_id: int | None = None
+                message_id: int | None = None
+                stop = False
                 try:
                     topic = await bot.create_forum_topic(
                         chat_id=user_id, name=spec.name, icon_color=spec.icon_color
@@ -216,15 +238,30 @@ class TopicRegistry:
                             await bot.pin_chat_message(
                                 user_id, message_id, disable_notification=True
                             )
+                except TelegramRetryAfter as exc:
+                    self._retry_at[user_id] = time.monotonic() + exc.retry_after
+                    logger.warning(
+                        "Flood control while creating topics for user %s, retry in %ss",
+                        user_id,
+                        exc.retry_after,
+                    )
+                    stop = True
                 except TelegramAPIError:
                     logger.exception("Could not create topic %s for user %s", spec.kind, user_id)
-                    continue
-                session.add(
-                    UserTopic(
-                        user_id=user_id, kind=spec.kind, thread_id=thread_id, message_id=message_id
+                # Тема уже создана (даже если вступление не отправилось) — запомним её,
+                # иначе следующая попытка заведёт дубликат.
+                if thread_id is not None:
+                    session.add(
+                        UserTopic(
+                            user_id=user_id,
+                            kind=spec.kind,
+                            thread_id=thread_id,
+                            message_id=message_id,
+                        )
                     )
-                )
-                threads[spec.kind] = thread_id
+                    threads[spec.kind] = thread_id
+                if stop:
+                    break
             await session.commit()
         return threads
 

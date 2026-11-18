@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from aiogram.types import Message
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import ArchivedMessage, BusinessConnection, MessageEdit
@@ -59,15 +60,29 @@ def sender_name(message: Message) -> str:
 async def save_connection(
     session: AsyncSession, connection_id: str, owner_id: int, is_enabled: bool
 ) -> BusinessConnection:
-    row = await session.get(BusinessConnection, connection_id)
-    if row is None:
-        row = BusinessConnection(id=connection_id, owner_id=owner_id)
-        session.add(row)
-    row.owner_id = owner_id
-    row.is_enabled = is_enabled
-    row.updated_at = datetime.now(UTC)
-    await session.commit()
-    return row
+    """Создать или обновить подключение.
+
+    Апдейты обрабатываются параллельно: несколько сообщений одного неизвестного подключения
+    могут одновременно попытаться его создать. Проигравший получает IntegrityError,
+    откатывается и обновляет уже созданную запись.
+    """
+    for attempt in range(2):
+        row = await session.get(BusinessConnection, connection_id)
+        if row is None:
+            row = BusinessConnection(id=connection_id, owner_id=owner_id)
+            session.add(row)
+        row.owner_id = owner_id
+        row.is_enabled = is_enabled
+        row.updated_at = datetime.now(UTC)
+        try:
+            await session.commit()
+        except IntegrityError:
+            await session.rollback()
+            if attempt:
+                raise
+            continue
+        return row
+    raise AssertionError("unreachable")
 
 
 async def get_connection(session: AsyncSession, connection_id: str) -> BusinessConnection | None:
@@ -119,7 +134,15 @@ async def store(session: AsyncSession, owner_id: int, message: Message) -> Archi
         sent_at=_aware(message.date),
     )
     session.add(row)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # То же сообщение параллельно сохранил другой апдейт (повторная доставка).
+        await session.rollback()
+        existing = await find(session, owner_id, message.chat.id, message.message_id)
+        if existing is None:
+            raise
+        return existing
     return row
 
 

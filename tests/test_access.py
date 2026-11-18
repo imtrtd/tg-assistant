@@ -59,3 +59,23 @@ async def test_business_message_from_stranger_passes_without_reply():
 
     assert result == "ok"
     handler.assert_awaited_once()
+
+
+async def test_own_bot_updates_are_ignored_silently():
+    """Служебные сообщения самого бота (например, «тема создана») — без отказа и ответа."""
+    handler = AsyncMock()
+    update = MagicMock()
+    update.__class__ = Update
+    update.business_message = update.edited_business_message = None
+    update.deleted_business_messages = None
+    update.message.answer = AsyncMock()
+    bot = MagicMock()
+    bot.id = 999
+
+    result = await AccessMiddleware({42})(
+        handler, update, {"event_from_user": tg_user(999), "bot": bot}
+    )
+
+    assert result is None
+    handler.assert_not_awaited()
+    update.message.answer.assert_not_awaited()
