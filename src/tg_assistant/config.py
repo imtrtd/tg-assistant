@@ -1,3 +1,4 @@
+import socket
 from typing import Annotated, Any
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -40,6 +41,11 @@ class Settings(DatabaseSettings):
     web_port: int = Field(8080, validation_alias=AliasChoices("WEB_PORT", "PORT", "web_port"))
     # Домен, который Railway выдаёт сервису. Если WEB_APP_URL не задан, адрес берётся отсюда.
     railway_public_domain: str = ""
+    # Несколько экземпляров на одну базу Postgres (ПК + облако): работает один — лидер.
+    # NODE_PRIORITY: у кого больше, тот главный (ПК — 10, облако — 0). См. docs/failover.md.
+    node_name: str = Field(default_factory=socket.gethostname)
+    node_priority: int = 0
+    leader_interval: float = 10.0
 
     @model_validator(mode="after")
     def _railway_url(self) -> "Settings":

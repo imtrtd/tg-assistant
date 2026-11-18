@@ -3,6 +3,7 @@ from .models import (
     ArchivedMessage,
     Base,
     BusinessConnection,
+    ClusterNode,
     MessageEdit,
     Note,
     Reminder,
@@ -13,6 +14,7 @@ from .models import (
 __all__ = [
     "ArchivedMessage",
     "BusinessConnection",
+    "ClusterNode",
     "MessageEdit",
     "Base",
     "Note",

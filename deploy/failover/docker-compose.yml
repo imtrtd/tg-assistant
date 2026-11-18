@@ -1,0 +1,83 @@
+# Два экземпляра бота на одну базу Postgres: ПК (главный) и облако (запасной).
+# Запуск из корня репозитория:  deploy/failover/compose.sh up -d --build
+# Какие контейнеры поднять, решает COMPOSE_PROFILES в .env — см. docs/failover.md:
+#   облако (Oracle): COMPOSE_PROFILES=db         — Postgres, туннель к нему, ежедневные копии
+#   ПК:              COMPOSE_PROFILES=remote-db  — доступ к Postgres облака через Cloudflare
+name: tg-assistant
+
+services:
+  bot:
+    build: ../..
+    restart: unless-stopped
+    env_file: ../../.env
+    # Без связи с базой бот завершается, Docker перезапускает его через пару секунд.
+    stop_grace_period: 30s
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: [db]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tga
+      POSTGRES_DB: tga
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "tga"]
+      interval: 10s
+    logging: *logging
+
+  # Postgres наружу — только через туннель Cloudflare (входящие порты не открываются).
+  # Маршрут db.<домен> → tcp://postgres:5432 и доступ по сервисному токену настраиваются
+  # в Cloudflare Zero Trust; сюда нужен только токен туннеля.
+  db-tunnel:
+    image: cloudflare/cloudflared:2025.8.0
+    profiles: [db]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
+    logging: *logging
+
+  # Копия базы раз в сутки в ./backups, хранятся последние 14.
+  pg-backup:
+    image: postgres:17-alpine
+    profiles: [db]
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: tga
+      PGDATABASE: tga
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - ../../backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          pg_dump -Fc -f /backups/tga-$$(date +%Y%m%d-%H%M%S).dump && \
+            ls -1t /backups/tga-*.dump | tail -n +15 | xargs -r rm --
+          sleep 86400
+        done
+    logging: *logging
+
+  # На ПК: локальный порт db-access:5432 ведёт в Postgres облака через Cloudflare Access.
+  db-access:
+    image: cloudflare/cloudflared:2025.8.0
+    profiles: [remote-db]
+    restart: unless-stopped
+    command: access tcp --hostname ${DB_HOSTNAME:-} --url 0.0.0.0:5432
+    environment:
+      TUNNEL_SERVICE_TOKEN_ID: ${CF_ACCESS_CLIENT_ID:-}
+      TUNNEL_SERVICE_TOKEN_SECRET: ${CF_ACCESS_CLIENT_SECRET:-}
+    logging: *logging
+
+volumes:
+  pgdata:
