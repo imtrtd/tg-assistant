@@ -33,6 +33,13 @@ class AccessMiddleware(BaseMiddleware):
         if user is not None and user.id in self.allowed_user_ids:
             return await handler(event, data)
 
+        bot = data.get("bot")
+        if user is not None and bot is not None and user.id == bot.id:
+            # Собственные служебные сообщения бота (например, «тема создана» в личке
+            # с включёнными темами). Это не чужой пользователь: молча пропускаем,
+            # без предупреждения в логе и без ответа «нет доступа».
+            return None
+
         if user is not None:
             logger.warning("Access denied for user %s (@%s)", user.id, user.username)
         if isinstance(event, Update):

@@ -403,3 +403,57 @@ async def test_archive_command_offers_mini_app(bot, dp_app):
     (msg,) = sent_methods(bot, SendMessage)
     first = msg.reply_markup.inline_keyboard[0][0]
     assert first.web_app.url == "https://bot.example.com/?open=archive"
+
+
+async def test_concurrent_connection_save_does_not_fail(session_factory, monkeypatch):
+    """Два апдейта одновременно сохраняют одно и то же новое подключение."""
+    from tg_assistant.db import BusinessConnection
+
+    async with session_factory() as first:
+        await repo.save_connection(first, "conn-race", ALLOWED_ID, True)
+
+    async with session_factory() as second:
+        real_get = second.get
+        calls = 0
+
+        async def stale_get(*args, **kwargs):
+            # Первое чтение «не видит» запись соседа — как при гонке.
+            nonlocal calls
+            calls += 1
+            return None if calls == 1 else await real_get(*args, **kwargs)
+
+        monkeypatch.setattr(second, "get", stale_get)
+        row = await repo.save_connection(second, "conn-race", ALLOWED_ID, False)
+
+    assert row.is_enabled is False
+    async with session_factory() as check:
+        total = await check.scalar(select(func.count()).select_from(BusinessConnection))
+        assert total == 1
+        assert (await check.get(BusinessConnection, "conn-race")).is_enabled is False
+
+
+async def test_concurrent_store_returns_existing(session_factory, monkeypatch):
+    message = Message(
+        message_id=77,
+        date=datetime.now(UTC),
+        chat=Chat(id=555, type="private", first_name="Друг"),
+        from_user=TgUser(id=555, is_bot=False, first_name="Друг"),
+        text="привет",
+    )
+    async with session_factory() as first:
+        original = await repo.store(first, ALLOWED_ID, message)
+        original_id = original.id
+
+    async with session_factory() as second:
+        real_find = repo.find
+        calls = 0
+
+        async def stale_find(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            return None if calls == 1 else await real_find(*args, **kwargs)
+
+        monkeypatch.setattr(repo, "find", stale_find)
+        row = await repo.store(second, ALLOWED_ID, message)
+
+    assert row.id == original_id
