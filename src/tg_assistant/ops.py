@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 HEARTBEAT_INTERVAL = 30.0
 STALE_AFTER = 120.0
+# Насколько сторож может «проспать» сверх своей паузы, прежде чем считать, что спала машина.
+SUSPEND_SLACK = 30.0
 PING_INTERVAL = 60.0
 BACKUP_CHECK_INTERVAL = 600.0
 LAST_BACKUP_KEY = "last_backup_at"
@@ -64,11 +66,24 @@ class Heartbeat:
             self.beat()
             await asyncio.sleep(interval)
 
+    def check(self, slept: float, check_every: float) -> bool:
+        """Вызывается сторожем после паузы. True — цикл событий завис, пора выходить.
+
+        Если и сам сторож проспал намного дольше положенного, на паузе была вся машина
+        (сон ноутбука, пауза ВМ). Это не зависание: даём циклу время проснуться.
+        """
+        if slept > check_every + SUSPEND_SLACK:
+            logger.warning("System was suspended for ~%.0fs, resetting watchdog", slept)
+            self._last = time.monotonic()
+            return False
+        return self.stale()
+
     def start_watchdog(self, check_every: float = HEARTBEAT_INTERVAL) -> threading.Thread:
         def watch() -> None:
             while True:
+                started = time.monotonic()
                 time.sleep(check_every)
-                if self.stale():
+                if self.check(time.monotonic() - started, check_every):
                     logger.critical(
                         "Event loop is stuck for over %.0fs, exiting so the bot is restarted",
                         self.stale_after,

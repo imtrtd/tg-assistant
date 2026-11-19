@@ -63,6 +63,15 @@ def test_heartbeat_file_and_staleness(tmp_path):
     assert hb.stale()
 
 
+def test_watchdog_ignores_system_suspend(tmp_path):
+    hb = ops.Heartbeat(tmp_path / "heartbeat", stale_after=120)
+    hb._last -= 3600  # цикл «не отвечал» час...
+    assert not hb.check(slept=3600, check_every=30)  # ...но и сторож спал: пауза машины
+    assert not hb.stale()  # отсчёт начат заново
+    hb._last -= 200
+    assert hb.check(slept=30, check_every=30)  # сторож вовремя, цикл молчит — зависание
+
+
 async def test_send_backup_to_admins(bot, session_factory):
     await _fill(session_factory)
     assert await ops.send_backup(bot, session_factory, {7, 8}, "pc")
