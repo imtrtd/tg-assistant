@@ -8,40 +8,23 @@
 import asyncio
 import sys
 
-from sqlalchemy import Integer, func, select, text
-
-from .db import Base, create_engine, run_migrations
+from .backup import dump, load
+from .db import create_engine, run_migrations
 
 
 async def copy(src_url: str, dst_url: str) -> dict[str, int]:
     src, dst = create_engine(src_url), create_engine(dst_url)
-    counts: dict[str, int] = {}
     try:
-        async with src.connect() as s, dst.begin() as d:
-            for table in Base.metadata.sorted_tables:
-                if await d.scalar(select(func.count()).select_from(table)):
-                    raise SystemExit(f"Target table {table.name} is not empty")
-            for table in Base.metadata.sorted_tables:
-                rows = [dict(r._mapping) for r in await s.execute(select(table))]
-                if rows:
-                    await d.execute(table.insert(), rows)
-                counts[table.name] = len(rows)
-            if dst.dialect.name == "postgresql":
-                # Счётчики id после вставки с явными id.
-                for table in Base.metadata.sorted_tables:
-                    pk = list(table.primary_key.columns)
-                    if len(pk) == 1 and isinstance(pk[0].type, Integer) and pk[0].autoincrement:
-                        await d.execute(
-                            text(
-                                f"SELECT setval(pg_get_serial_sequence('{table.name}', "
-                                f"'{pk[0].name}'), COALESCE(MAX({pk[0].name}), 0) + 1, false) "
-                                f"FROM {table.name}"
-                            )
-                        )
+        async with src.connect() as s:
+            data = await dump(s)
+        async with dst.begin() as d:
+            try:
+                return await load(d, data)
+            except ValueError as exc:
+                raise SystemExit(str(exc)) from exc
     finally:
         await src.dispose()
         await dst.dispose()
-    return counts
 
 
 def main() -> None:

@@ -1,5 +1,6 @@
 from .engine import create_engine, create_session_factory, run_migrations
 from .models import (
+    AppState,
     ArchivedMessage,
     Base,
     BusinessConnection,
@@ -12,6 +13,7 @@ from .models import (
 )
 
 __all__ = [
+    "AppState",
     "ArchivedMessage",
     "BusinessConnection",
     "ClusterNode",

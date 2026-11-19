@@ -9,6 +9,7 @@ from .bot import create_dispatcher
 from .config import Settings
 from .db import create_engine, create_session_factory, run_migrations
 from .leader import create_lock_engine, run_with_leadership, uses_leader_election
+from .ops import Heartbeat, cancel
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,11 @@ async def run(settings: Settings) -> None:
         with contextlib.suppress(asyncio.CancelledError):
             await polling
 
+    heartbeat = Heartbeat(settings.heartbeat_file)
+    heartbeat.beat()
+    heartbeat.start_watchdog()
+    heartbeat_task = asyncio.create_task(heartbeat.run())
+
     shutdown = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -56,6 +62,7 @@ async def run(settings: Settings) -> None:
         else:
             await run_bot(shutdown)
     finally:
+        await cancel(heartbeat_task)
         await bot.session.close()
         await engine.dispose()
 
