@@ -4,6 +4,7 @@ from aiogram.types import Chat, Message, Update
 from aiogram.types import User as TgUser
 
 from tg_assistant.db import notes as repo
+from tg_assistant.db.models import User
 from tg_assistant.handlers.notes import NotesCb
 
 from .conftest import ALLOWED_ID, callback_from, edited_texts, sent_texts, update_from
@@ -75,6 +76,8 @@ async def test_delete_button_cannot_delete_foreign_note(bot, dp, session_factory
     await dp.feed_update(bot, update_from(ALLOWED_ID, "/note моя"))
     async with session_factory() as session:
         (note,), _ = await repo.list_notes(session, ALLOWED_ID, offset=0, limit=5)
+        session.add(User(id=999, first_name="Чужой", timezone="UTC"))
+        await session.flush()
         note.user_id = 999  # имитируем чужую заметку
         await session.commit()
 

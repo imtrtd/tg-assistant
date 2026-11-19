@@ -9,8 +9,9 @@ from .branding import setup_bot_profile, setup_menu_button
 from .config import Settings
 from .handlers import build_router, on_error
 from .middlewares import AccessMiddleware, DbMiddleware
+from .ops import backup_loop, cancel, notify_admins, ping_loop
 from .reminders.scheduler import run_scheduler
-from .texts import REPLY_DIGEST, REPLY_MENU, REPLY_NOTES, REPLY_REMINDERS
+from .texts import REPLY_DIGEST, REPLY_MENU, REPLY_NOTES, REPLY_REMINDERS, bot_started
 from .topics import HOME, NOTES, REMINDERS, TopicRegistry, TopicsMiddleware, TopicsRequestMiddleware
 from .web import LoginTokens, create_web_app, start_web_server
 from .web.tunnel import wait_for_tunnel_url, watch_tunnel
@@ -73,6 +74,24 @@ async def _on_startup(
     dispatcher["scheduler_task"] = asyncio.create_task(
         run_scheduler(bot, session_factory, archive_retention_days=settings.archive_retention_days)
     )
+    # Всё ниже работает только на лидере: _on_startup вызывается, когда узел начал polling.
+    ops_tasks = []
+    if settings.healthcheck_ping_url:
+        ops_tasks.append(asyncio.create_task(ping_loop(settings.healthcheck_ping_url)))
+    if settings.admin_ids and settings.backup_interval_hours > 0:
+        ops_tasks.append(
+            asyncio.create_task(
+                backup_loop(
+                    bot,
+                    session_factory,
+                    settings.admin_ids,
+                    settings.node_name,
+                    settings.backup_interval_hours,
+                )
+            )
+        )
+    dispatcher["ops_tasks"] = ops_tasks
+    await notify_admins(bot, settings.admin_ids, bot_started(settings.node_name))
 
 
 async def _connect_tunnel(bot: Bot, dispatcher: Dispatcher, settings: Settings) -> None:
@@ -98,6 +117,8 @@ async def _connect_tunnel(bot: Bot, dispatcher: Dispatcher, settings: Settings) 
 
 
 async def _on_shutdown(dispatcher: Dispatcher) -> None:
+    for ops_task in dispatcher.workflow_data.pop("ops_tasks", []):
+        await cancel(ops_task)
     tunnel_task: asyncio.Task | None = dispatcher.workflow_data.pop("tunnel_task", None)
     if tunnel_task is not None:
         tunnel_task.cancel()

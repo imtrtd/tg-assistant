@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from unittest.mock import AsyncMock
 
@@ -15,8 +16,11 @@ from tg_assistant.db import Base, create_session_factory
 
 @pytest.fixture
 async def session_factory():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    # TEST_DATABASE_URL=postgresql+asyncpg://... — прогнать тесты на Postgres.
+    url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(url)
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield create_session_factory(engine)
     await engine.dispose()

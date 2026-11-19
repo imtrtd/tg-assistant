@@ -245,3 +245,78 @@ async def test_topics_command_when_off_explains_botfather(settings, session_fact
     dp = create_dispatcher(settings, session_factory)
     await dp.feed_update(tbot, msg("/topics"))
     assert "Threaded Mode" in tg.of(SendMessage)[-1].text
+
+
+async def test_concurrent_updates_create_topics_once(dp, tbot, tg):
+    """Апдейты одного пользователя идут параллельно — набор тем всё равно один."""
+    import asyncio
+
+    original = tg.__call__
+
+    async def slow(bot, method, **kwargs):
+        if isinstance(method, CreateForumTopic):
+            await asyncio.sleep(0.01)
+        return await original(bot, method, **kwargs)
+
+    # Пользователь уже есть в базе (иначе параллельные апдейты спотыкаются о его создание).
+    dp["topics"].enabled = False
+    await dp.feed_update(tbot, msg("/help", mid=599))
+    dp["topics"].enabled = True
+    tg.calls.clear()
+
+    tbot.session.make_request = slow
+    await asyncio.gather(*(dp.feed_update(tbot, msg("/help", mid=600 + i)) for i in range(5)))
+
+    assert len(tg.of(CreateForumTopic)) == len(TOPICS)
+
+
+async def test_flood_control_pauses_topic_creation(dp, tbot, tg):
+    from aiogram.exceptions import TelegramRetryAfter
+
+    original = tg.__call__
+    created = 0
+
+    async def flood(bot, method, **kwargs):
+        nonlocal created
+        if isinstance(method, CreateForumTopic):
+            created += 1
+            if created == 3:
+                tg.calls.append(method)
+                raise TelegramRetryAfter(method=method, message="Too Many Requests", retry_after=60)
+        return await original(bot, method, **kwargs)
+
+    tbot.session.make_request = flood
+    await dp.feed_update(tbot, msg("/start"))
+    assert len(await threads(dp)) == 2  # успешно созданные темы запомнены
+
+    await dp.feed_update(tbot, msg("/help", mid=501))
+    await dp.feed_update(tbot, msg("/notes", mid=502))
+    assert len(tg.of(CreateForumTopic)) == 3  # пока действует пауза, новых попыток нет
+
+    dp["topics"]._retry_at.clear()
+    await dp.feed_update(tbot, msg("/help", mid=503))
+    assert set(await threads(dp)) == {spec.kind for spec in TOPICS}
+
+
+async def test_topic_is_remembered_when_intro_fails(dp, tbot, tg):
+    """Тема создана, а вступление не ушло — тему не создаём повторно."""
+    from aiogram.exceptions import TelegramRetryAfter
+
+    original = tg.__call__
+    failed = False
+
+    async def intro_flood(bot, method, **kwargs):
+        nonlocal failed
+        if isinstance(method, SendMessage) and not failed:
+            failed = True
+            tg.calls.append(method)
+            raise TelegramRetryAfter(method=method, message="Too Many Requests", retry_after=60)
+        return await original(bot, method, **kwargs)
+
+    tbot.session.make_request = intro_flood
+    await dp.feed_update(tbot, msg("/start"))
+    assert HOME in await threads(dp)
+    dp["topics"]._retry_at.clear()
+    await dp.feed_update(tbot, msg("/help", mid=501))
+    names = [c.name for c in tg.of(CreateForumTopic)]
+    assert len(names) == len(set(names)) == len(TOPICS)

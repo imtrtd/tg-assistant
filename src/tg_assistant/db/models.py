@@ -157,3 +157,27 @@ class UserTopic(Base):
     thread_id: Mapped[int] = mapped_column(BigInteger)
     # Закреплённое сообщение темы (у «Приложения» — с кнопкой мини-приложения).
     message_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class ClusterNode(Base):
+    """Экземпляр бота (ПК, облако) при общей базе Postgres.
+
+    Узлы раз в несколько секунд отмечаются здесь; работает только лидер, а узел с большим
+    приоритетом забирает лидерство, как только появляется. См. tg_assistant.leader.
+    """
+
+    __tablename__ = "cluster_nodes"
+
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    priority: Mapped[int] = mapped_column(default=0)
+    is_leader: Mapped[bool] = mapped_column(Boolean, default=False)
+    seen_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class AppState(Base):
+    """Служебные значения, общие для всех узлов (например, время последнего бэкапа)."""
+
+    __tablename__ = "app_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
