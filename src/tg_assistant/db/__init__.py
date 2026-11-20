@@ -8,6 +8,8 @@ from .models import (
     MessageEdit,
     Note,
     Reminder,
+    ResearchSeenPost,
+    ResearchWatch,
     User,
     UserTopic,
 )
@@ -21,6 +23,8 @@ __all__ = [
     "Base",
     "Note",
     "Reminder",
+    "ResearchSeenPost",
+    "ResearchWatch",
     "User",
     "UserTopic",
     "create_engine",

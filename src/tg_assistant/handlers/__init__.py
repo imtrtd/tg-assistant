@@ -1,6 +1,18 @@
 from aiogram import Router
 
-from . import archive, business, capture, common, extras, mention, notes, reminders, topics, web
+from . import (
+    archive,
+    business,
+    capture,
+    common,
+    extras,
+    mention,
+    notes,
+    reminders,
+    research,
+    topics,
+    web,
+)
 from .common import BOT_COMMANDS
 from .errors import on_error
 
@@ -19,6 +31,7 @@ def build_router() -> Router:
     router.include_router(archive.create_router())
     router.include_router(business.create_router())
     router.include_router(topics.create_router())
+    router.include_router(research.create_router())
     # Последним: ловит всё, что не разобрали обработчики выше.
     router.include_router(capture.create_router())
     return router

@@ -1,0 +1,12 @@
+#cloud-config
+# Необязательная вставка в форму создания ВМ Oracle Cloud (Cloud-init).
+# Ставит Docker. Репозиторий, .env и сессию Telethon сюда не кладите:
+# их добавляет deploy/setup-vps.sh и ручное редактирование .env.
+package_update: true
+packages:
+  - git
+  - curl
+  - ca-certificates
+runcmd:
+  - [bash, -lc, "curl -fsSL https://get.docker.com | sh"]
+  - [systemctl, enable, --now, docker]

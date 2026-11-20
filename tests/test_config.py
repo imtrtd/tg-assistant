@@ -45,3 +45,22 @@ def test_explicit_web_app_url_wins_over_railway(monkeypatch):
         monkeypatch, RAILWAY_PUBLIC_DOMAIN="bot.up.railway.app", WEB_APP_URL="https://my.example"
     )
     assert settings.web_app_url == "https://my.example"
+
+
+def test_bot_token_alias_and_research_switch(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("BOT_TOKEN", "1:from-alias")
+    monkeypatch.setenv("API_ID", "42")
+    monkeypatch.setenv("API_HASH", "hash")
+    monkeypatch.setenv("TELEGRAM_SESSION", "string-session")
+    settings = Settings(_env_file=None)
+    assert settings.telegram_bot_token.get_secret_value() == "1:from-alias"
+    assert settings.telegram_api_id == 42
+    assert settings.research_enabled
+
+
+def test_blank_research_secrets_keep_search_off(monkeypatch):
+    settings = make(monkeypatch, API_ID="", API_HASH="", TELEGRAM_SESSION="")
+    assert settings.telegram_api_id is None
+    assert settings.telegram_api_hash is None
+    assert not settings.research_enabled
