@@ -18,7 +18,14 @@ from .research.service import run_watch_loop
 from .texts import REPLY_DIGEST, REPLY_MENU, REPLY_NOTES, REPLY_REMINDERS, bot_started
 from .topics import HOME, NOTES, REMINDERS, TopicRegistry, TopicsMiddleware, TopicsRequestMiddleware
 from .web import LoginTokens, create_web_app, start_web_server
-from .web.tunnel import wait_for_tunnel_url, watch_tunnel
+from .web.tunnel import (
+    QuickTunnel,
+    cloudflared_available,
+    in_docker,
+    should_start_embedded_tunnel,
+    wait_for_tunnel_url,
+    watch_tunnel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +70,7 @@ async def _on_startup(
     login_tokens: LoginTokens,
     topics: TopicRegistry,
 ) -> None:
+    await _start_embedded_tunnel(dispatcher, settings)
     if settings.web_server_enabled:
         app = create_web_app(settings, session_factory, login_tokens, bot)
         dispatcher["web_runner"] = await start_web_server(app, settings.web_host, settings.web_port)
@@ -124,6 +132,23 @@ async def _start_research(
     )
 
 
+async def _start_embedded_tunnel(dispatcher: Dispatcher, settings: Settings) -> None:
+    """Запустить cloudflared в контейнере, если своего HTTPS-адреса нет."""
+    if not should_start_embedded_tunnel(
+        settings, binary_present=cloudflared_available(), in_docker=in_docker()
+    ):
+        return
+    tunnel = QuickTunnel(settings.web_port)
+    try:
+        await tunnel.start()
+    except OSError:
+        logger.exception("Could not start cloudflared; Mini App stays off")
+        return
+    dispatcher["quick_tunnel"] = tunnel
+    settings.web_tunnel_metrics_url = tunnel.metrics_url
+    logger.info("Cloudflare quick tunnel started, metrics at %s", tunnel.metrics_url)
+
+
 async def _connect_tunnel(bot: Bot, dispatcher: Dispatcher, settings: Settings) -> None:
     """Получить адрес туннеля Cloudflare и следить за его сменой."""
     url = await wait_for_tunnel_url(settings.web_tunnel_metrics_url)
@@ -154,6 +179,9 @@ async def _on_shutdown(dispatcher: Dispatcher) -> None:
         tunnel_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await tunnel_task
+    quick_tunnel: QuickTunnel | None = dispatcher.workflow_data.pop("quick_tunnel", None)
+    if quick_tunnel is not None:
+        await quick_tunnel.stop()
     runner = dispatcher.workflow_data.pop("web_runner", None)
     if runner is not None:
         await runner.cleanup()

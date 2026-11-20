@@ -37,6 +37,9 @@ class Settings(DatabaseSettings):
     # Адрес метрик cloudflared (например http://cloudflared:2000). Если задан, бот сам узнаёт
     # публичный HTTPS-адрес быстрого туннеля Cloudflare и подставляет его в WEB_APP_URL.
     web_tunnel_metrics_url: str = ""
+    # auto — в Docker без своего HTTPS бот сам запускает cloudflared (мини-приложение в Telegram).
+    # on — то же вне Docker, если cloudflared есть в PATH. off — не запускать.
+    web_tunnel: str = "auto"
     # Имя бота без @ — для кнопки «Войти через Telegram». Пусто — бот узнаёт его сам при старте.
     bot_username: str = ""
     web_host: str = "0.0.0.0"
@@ -100,6 +103,14 @@ class Settings(DatabaseSettings):
         if not self.web_app_url and self.railway_public_domain:
             self.web_app_url = f"https://{self.railway_public_domain.strip().rstrip('/')}"
         return self
+
+    @field_validator("web_tunnel")
+    @classmethod
+    def _check_tunnel_mode(cls, value: str) -> str:
+        value = value.strip().lower()
+        if value not in {"auto", "on", "off"}:
+            raise ValueError("WEB_TUNNEL must be auto, on, or off")
+        return value
 
     @field_validator("web_app_url")
     @classmethod
