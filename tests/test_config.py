@@ -59,6 +59,13 @@ def test_bot_token_alias_and_research_switch(monkeypatch):
     assert settings.research_enabled
 
 
+def test_web_tunnel_mode(monkeypatch):
+    assert make(monkeypatch).web_tunnel == "auto"
+    assert make(monkeypatch, WEB_TUNNEL=" ON ").web_tunnel == "on"
+    with pytest.raises(ValidationError):
+        make(monkeypatch, WEB_TUNNEL="maybe")
+
+
 def test_blank_research_secrets_keep_search_off(monkeypatch):
     settings = make(monkeypatch, API_ID="", API_HASH="", TELEGRAM_SESSION="")
     assert settings.telegram_api_id is None

@@ -62,6 +62,8 @@ jobs:
           from tg_assistant.web.app import STATIC_DIR
           assert (STATIC_DIR / 'index.html').is_file() and (STATIC_DIR / 'app.js').is_file()
           "
+      - name: В образе есть cloudflared для мини-приложения
+        run: docker run --rm --entrypoint cloudflared tg-assistant --version
       - run: bash -n deploy/setup-vps.sh deploy/update.sh deploy/backup.sh deploy/failover/compose.sh
       - name: Схема «ПК + облако» собирается
         run: |
