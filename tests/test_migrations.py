@@ -19,6 +19,8 @@ def test_migrations_create_schema(tmp_path):
         "archived_messages",
         "message_edits",
         "business_connections",
+        "research_watches",
+        "research_seen_posts",
     } <= tables
     with sqlite3.connect(db_path) as conn:
         columns = {row[1] for row in conn.execute("pragma table_info(users)")}

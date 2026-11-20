@@ -181,3 +181,35 @@ class AppState(Base):
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+class ResearchWatch(Base):
+    """Наблюдение за упоминанием в публичных каналах. Одно выражение на чат."""
+
+    __tablename__ = "research_watches"
+    __table_args__ = (UniqueConstraint("chat_id", "term_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    term: Mapped[str] = mapped_column(String(120))
+    term_key: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ResearchSeenPost(Base):
+    """Уже обработанный публичный пост наблюдения. Повторно не присылается."""
+
+    __tablename__ = "research_seen_posts"
+    __table_args__ = (
+        UniqueConstraint("watch_id", "peer_id", "message_id"),
+        Index("ix_research_seen_posts_watch_id", "watch_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    watch_id: Mapped[int] = mapped_column(
+        ForeignKey("research_watches.id", ondelete="CASCADE"),
+    )
+    peer_id: Mapped[int] = mapped_column(BigInteger)
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    found_at: Mapped[datetime] = mapped_column(UTCDateTime)

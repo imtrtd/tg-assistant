@@ -21,7 +21,9 @@ class DatabaseSettings(BaseSettings):
 class Settings(DatabaseSettings):
     """Настройки приложения из переменных окружения и файла .env."""
 
-    telegram_bot_token: SecretStr
+    telegram_bot_token: SecretStr = Field(
+        validation_alias=AliasChoices("TELEGRAM_BOT_TOKEN", "BOT_TOKEN")
+    )
     allowed_user_ids: Annotated[frozenset[int], NoDecode] = frozenset()
     # Кому присылать сообщения о необработанных ошибках. Пусто — никому.
     admin_ids: Annotated[frozenset[int], NoDecode] = frozenset()
@@ -52,6 +54,46 @@ class Settings(DatabaseSettings):
     heartbeat_file: str = DEFAULT_HEARTBEAT_FILE
     healthcheck_ping_url: str = ""
     backup_interval_hours: float = 24.0
+    # Публичный поиск (Telethon). Пустые API_ID / API_HASH / TELEGRAM_SESSION — команды выключены.
+    telegram_api_id: int | None = Field(
+        default=None, validation_alias=AliasChoices("API_ID", "TELEGRAM_API_ID")
+    )
+    telegram_api_hash: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("API_HASH", "TELEGRAM_API_HASH")
+    )
+    telegram_session: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("TELEGRAM_SESSION", "SESSION_STRING")
+    )
+    research_watch_interval_seconds: int = Field(
+        300,
+        validation_alias=AliasChoices("RESEARCH_WATCH_INTERVAL_SECONDS", "WATCH_INTERVAL_SECONDS"),
+    )
+    research_search_limit: int = Field(
+        20, validation_alias=AliasChoices("RESEARCH_SEARCH_LIMIT", "SEARCH_LIMIT")
+    )
+    research_find_limit: int = Field(
+        20, validation_alias=AliasChoices("RESEARCH_FIND_LIMIT", "FIND_LIMIT")
+    )
+    research_channel_history_limit: int = Field(
+        100,
+        validation_alias=AliasChoices("RESEARCH_CHANNEL_HISTORY_LIMIT", "CHANNEL_HISTORY_LIMIT"),
+    )
+    research_flood_max_wait_seconds: int = Field(
+        120,
+        validation_alias=AliasChoices("RESEARCH_FLOOD_MAX_WAIT_SECONDS", "FLOOD_MAX_WAIT_SECONDS"),
+    )
+    research_flood_retries: int = Field(
+        5, validation_alias=AliasChoices("RESEARCH_FLOOD_RETRIES", "FLOOD_RETRIES")
+    )
+    research_rate_limit_commands: int = Field(
+        8, validation_alias=AliasChoices("RESEARCH_RATE_LIMIT_COMMANDS", "RATE_LIMIT_COMMANDS")
+    )
+    research_rate_limit_window_seconds: int = Field(
+        60,
+        validation_alias=AliasChoices(
+            "RESEARCH_RATE_LIMIT_WINDOW_SECONDS", "RATE_LIMIT_WINDOW_SECONDS"
+        ),
+    )
 
     @model_validator(mode="after")
     def _railway_url(self) -> "Settings":
@@ -88,6 +130,25 @@ class Settings(DatabaseSettings):
     def mini_app_enabled(self) -> bool:
         """Telegram открывает мини-приложения только по HTTPS."""
         return self.web_app_url.startswith("https://")
+
+    @property
+    def research_enabled(self) -> bool:
+        """Есть ли учётные данные пользовательской сессии для публичного поиска."""
+        return bool(self.telegram_api_id and self.telegram_api_hash and self.telegram_session)
+
+    @field_validator("telegram_api_id", mode="before")
+    @classmethod
+    def _empty_api_id(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        return value
+
+    @field_validator("telegram_api_hash", "telegram_session", mode="before")
+    @classmethod
+    def _empty_secret(cls, value: Any) -> Any:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        return value
 
     @field_validator("allowed_user_ids", "admin_ids", mode="before")
     @classmethod
