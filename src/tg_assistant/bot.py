@@ -53,6 +53,14 @@ def create_dispatcher(
         ),
     )
     dp.update.outer_middleware(AccessMiddleware(settings.allowed_user_ids))
+
+    async def _inject_research_client(handler, event, data):
+        # aiogram копирует workflow_data до startup, поэтому клиент, подключённый
+        # в _on_startup, до хендлеров не доходит. Берём актуальное значение здесь.
+        data["research_client"] = dp.workflow_data.get("research_client")
+        return await handler(event, data)
+
+    dp.update.outer_middleware(_inject_research_client)
     dp.update.outer_middleware(DbMiddleware(session_factory, settings.default_timezone))
     dp.update.outer_middleware(TopicsMiddleware(topics, REPLY_KINDS))
     dp.errors.register(on_error)
