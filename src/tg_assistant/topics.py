@@ -3,7 +3,7 @@
 Если у бота в @BotFather включён режим тем (Threaded Mode), Telegram заводит новую тему
 на каждое сообщение, отправленное вне тем. Чтобы чат не зарастал темами, бот один раз
 создаёт постоянные темы — «Главное», «Заметки», «Напоминания», «Архив», «Удалённые»,
-«Приложение» — и:
+«Приложение», «Поиск» — и:
 
 - ответы на команды и уведомления отправляет в подходящую тему;
 - если сообщение пришло в «случайную» тему (созданную Telegram на лету), отвечает в
@@ -43,13 +43,14 @@ from .db import UserTopic
 
 logger = logging.getLogger(__name__)
 
-HOME, NOTES, REMINDERS, ARCHIVE, DELETED, APP = (
+HOME, NOTES, REMINDERS, ARCHIVE, DELETED, APP, RESEARCH = (
     "home",
     "notes",
     "reminders",
     "archive",
     "deleted",
     "app",
+    "research",
 )
 
 
@@ -98,6 +99,13 @@ TOPICS: tuple[TopicSpec, ...] = (
         "вместе с фото и голосовыми. Команда: /deleted.",
     ),
     TopicSpec(APP, "📱 Приложение", 0xFF93B2, ""),
+    TopicSpec(
+        RESEARCH,
+        "🔎 Поиск",
+        0x6FB9F0,
+        "🔎 <b>Публичный поиск</b>\n\nПосты, каналы и упоминания только из открытых "
+        "каналов и групп. Команды: /search, /sources, /channel, /watch, /watches.",
+    ),
 )
 SPECS = {spec.kind: spec for spec in TOPICS}
 
@@ -117,6 +125,12 @@ COMMAND_KINDS = {
     "deleted": DELETED,
     "app": APP,
     "web": APP,
+    "search": RESEARCH,
+    "sources": RESEARCH,
+    "channel": RESEARCH,
+    "watch": RESEARCH,
+    "unwatch": RESEARCH,
+    "watches": RESEARCH,
 }
 
 TOPIC_KIND: contextvars.ContextVar[str | None] = contextvars.ContextVar("topic_kind", default=None)

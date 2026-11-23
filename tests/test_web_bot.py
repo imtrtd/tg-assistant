@@ -122,6 +122,54 @@ async def test_startup_takes_mini_app_address_from_tunnel(bot, session_factory, 
     assert "tunnel_task" not in dp.workflow_data
 
 
+async def test_startup_embeds_tunnel_when_docker_has_no_https(bot, session_factory, monkeypatch):
+    from aiohttp import web
+    from aiohttp.test_utils import TestServer
+
+    async def quicktunnel(request):
+        return web.json_response({"hostname": "embedded.trycloudflare.com"})
+
+    metrics_app = web.Application()
+    metrics_app.router.add_get("/quicktunnel", quicktunnel)
+    metrics = TestServer(metrics_app)
+    await metrics.start_server()
+    metrics_url = str(metrics.make_url(""))
+
+    class FakeTunnel:
+        def __init__(self, port):
+            self.port = port
+            self.metrics_url = metrics_url
+            self.stopped = False
+
+        async def start(self):
+            return None
+
+        async def stop(self):
+            self.stopped = True
+
+    monkeypatch.setattr(
+        "tg_assistant.bot.should_start_embedded_tunnel", lambda *args, **kwargs: True
+    )
+    monkeypatch.setattr("tg_assistant.bot.QuickTunnel", FakeTunnel)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "42:TEST")
+    monkeypatch.setenv("ALLOWED_USER_IDS", str(ALLOWED_ID))
+    settings = Settings(_env_file=None, web_host="127.0.0.1", web_port=0)
+    dp = create_dispatcher(settings, session_factory)
+    data = await _startup(bot, dp)
+    tunnel = dp["quick_tunnel"]
+    try:
+        assert settings.web_app_url == "https://embedded.trycloudflare.com"
+        assert isinstance(tunnel, FakeTunnel)
+        assert tunnel.port == 0
+        (menu,) = sent_methods(bot, SetChatMenuButton)
+        assert menu.menu_button.web_app.url == "https://embedded.trycloudflare.com"
+    finally:
+        await dp.emit_shutdown(bot=bot, **data)
+        await metrics.close()
+    assert tunnel.stopped
+    assert "quick_tunnel" not in dp.workflow_data
+
+
 def test_app_url_builds_deep_links():
     settings = Settings(_env_file=None, telegram_bot_token="1:x", web_app_url="https://a.b/")
     assert settings.app_url() == "https://a.b"

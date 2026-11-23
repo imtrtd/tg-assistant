@@ -4,7 +4,14 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
-from tg_assistant.web.tunnel import fetch_tunnel_url, wait_for_tunnel_url, watch_tunnel
+from tg_assistant.config import Settings
+from tg_assistant.web.tunnel import (
+    QuickTunnel,
+    fetch_tunnel_url,
+    should_start_embedded_tunnel,
+    wait_for_tunnel_url,
+    watch_tunnel,
+)
 
 
 @pytest.fixture
@@ -76,3 +83,69 @@ async def test_watch_reports_changed_address(metrics):
     await asyncio.wait_for(changed.wait(), 2)
     task.cancel()
     assert current["url"] == "https://two.trycloudflare.com"
+
+
+def _settings(**kwargs) -> Settings:
+    return Settings(_env_file=None, telegram_bot_token="1:x", **kwargs)
+
+
+def test_embedded_tunnel_starts_only_without_a_public_url():
+    plain = _settings()
+    assert should_start_embedded_tunnel(plain, binary_present=True, in_docker=True)
+    assert not should_start_embedded_tunnel(plain, binary_present=True, in_docker=False)
+    assert not should_start_embedded_tunnel(plain, binary_present=False, in_docker=True)
+    assert should_start_embedded_tunnel(
+        _settings(web_tunnel="on"), binary_present=True, in_docker=False
+    )
+    assert not should_start_embedded_tunnel(
+        _settings(web_tunnel="off"), binary_present=True, in_docker=True
+    )
+    assert not should_start_embedded_tunnel(
+        _settings(web_app_url="https://bot.example"), binary_present=True, in_docker=True
+    )
+    assert not should_start_embedded_tunnel(
+        _settings(web_tunnel_metrics_url="http://cloudflared:2000"),
+        binary_present=True,
+        in_docker=True,
+    )
+    assert not should_start_embedded_tunnel(
+        _settings(railway_public_domain="bot.up.railway.app"),
+        binary_present=True,
+        in_docker=True,
+    )
+    assert not should_start_embedded_tunnel(
+        _settings(web_port=0), binary_present=True, in_docker=True
+    )
+
+
+async def test_quick_tunnel_starts_and_stops(tmp_path, monkeypatch):
+    seen = tmp_path / "args"
+    binary = tmp_path / "cloudflared"
+    binary.write_text(
+        "#!/bin/sh\n"
+        'printf \'%s\\n\' "$@" > "$SEEN"\n'
+        "trap 'exit 0' TERM INT\n"
+        "while true; do sleep 0.1; done\n"
+    )
+    binary.chmod(0o755)
+    monkeypatch.setenv("SEEN", str(seen))
+    tunnel = QuickTunnel(8080, metrics_port=2000, binary=str(binary))
+    await tunnel.start()
+    try:
+        for _ in range(50):
+            if seen.exists():
+                break
+            await asyncio.sleep(0.02)
+        text = seen.read_text()
+        assert "http://127.0.0.1:8080" in text
+        assert "127.0.0.1:2000" in text
+        assert "--no-autoupdate" in text
+    finally:
+        await tunnel.stop()
+    assert tunnel._proc is not None and tunnel._proc.returncode is not None
+
+
+async def test_quick_tunnel_missing_binary_raises():
+    tunnel = QuickTunnel(8080, binary="/nonexistent/cloudflared")
+    with pytest.raises(OSError):
+        await tunnel.start()

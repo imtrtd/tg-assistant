@@ -27,6 +27,7 @@ from tg_assistant.topics import (
     HOME,
     NOTES,
     REMINDERS,
+    RESEARCH,
     TOPICS,
     TopicsRequestMiddleware,
 )
@@ -119,14 +120,14 @@ async def test_first_message_creates_all_topics_once(dp, tbot, tg, session_facto
     created = tg.of(CreateForumTopic)
     assert [c.name for c in created] == [spec.name for spec in TOPICS]
     known = await threads(dp)
-    assert set(known) == {HOME, NOTES, REMINDERS, ARCHIVE, DELETED, APP}
+    assert set(known) == {HOME, NOTES, REMINDERS, ARCHIVE, DELETED, APP, RESEARCH}
     async with session_factory() as session:
         assert await session.get(UserTopic, (ALLOWED_ID, APP)) is not None
     # в каждую тему — закреплённое вступление; в «Приложении» — кнопка мини-приложения
-    intros = [m for m in tg.of(SendMessage) if m.message_thread_id in known.values()][:6]
+    intros = [m for m in tg.of(SendMessage) if m.message_thread_id in known.values()][: len(TOPICS)]
     app_intro = next(m for m in intros if m.message_thread_id == known[APP])
     assert app_intro.reply_markup.inline_keyboard[0][0].web_app.url == "https://bot.example.com"
-    assert len(tg.of(PinChatMessage)) == 6
+    assert len(tg.of(PinChatMessage)) == len(TOPICS)
 
 
 async def test_command_outside_topics_is_answered_in_its_topic_and_stray_removed(dp, tbot, tg):

@@ -23,6 +23,12 @@ Telegram-ассистент: бот, который помогает автом�
   (кнопка меню, `/app`) или в браузере (`/web` присылает одноразовую ссылку для входа).
   Светлая и тёмная темы, на широком экране — два столбца. Сводка на день и настройки
   (часовой пояс, время утренней сводки) — прямо в приложении.
+- **Публичный поиск:** `/search` посты в открытых каналах (даты и `in:@канал`),
+  `/sources` каналы и чаты по теме, `/channel @имя` сводка публичного канала или группы,
+  `/watch`, `/unwatch`, `/watches` — наблюдение за упоминаниями. Нужна отдельная
+  пользовательская сессия Telethon (`API_ID`, `API_HASH`, `TELEGRAM_SESSION`).
+  Телефоны, история ников, оценка даты регистрации людей и слитые базы не ищутся.
+  Подробно — [docs/research.md](docs/research.md).
 - В планах: AI-ассистент, интеграции.
 
 ## Команды и меню
@@ -40,6 +46,10 @@ Telegram-ассистент: бот, который помогает автом�
 | `/export` | Все заметки одним файлом |
 | `/archive`, `/chats`, `/deleted` | Архив чатов |
 | `/app`, `/web` | Мини-приложение и вход в браузере |
+| `/search` | Посты в публичных каналах |
+| `/sources` | Публичные каналы и чаты по теме |
+| `/channel` | Сводка публичного канала или группы |
+| `/watch`, `/unwatch`, `/watches` | Наблюдение за упоминаниями |
 
 `/start` и `/help` показывают баннер и кнопки: Заметки, Напоминания, Архив чатов,
 Сводка, Настройки, Мини-приложение. Внутри раздела есть «Назад».
@@ -100,13 +110,15 @@ Telegram-ассистент: бот, который помогает автом�
 ## Мини-приложение в Telegram
 
 Всё — заметки, напоминания и **архив чатов** с правками и удалениями — открывается
-внутри Telegram. Нужен HTTPS: без своего домена бот сам поднимает его через бесплатный
-туннель Cloudflare. Инструкция — [docs/mini-app.md](docs/mini-app.md).
+внутри Telegram. Нужен HTTPS: в Docker, если `WEB_APP_URL` пуст, контейнер сам
+поднимает бесплатный туннель Cloudflare и ставит кнопку «Открыть». Инструкция —
+[docs/mini-app.md](docs/mini-app.md).
 
 ## Запуск на сервере
 
-Без своего компьютера, из браузера: [docs/railway.md](docs/railway.md) (Railway, сборка из GitHub).
-Docker и скрипты для VPS: см. [docs/deploy.md](docs/deploy.md).
+Бесплатная постоянно включённая машина под бота и проверку упоминаний —
+[docs/oracle.md](docs/oracle.md) (Oracle Cloud Always Free, ВМ AMD). Railway из браузера:
+[docs/railway.md](docs/railway.md). Docker и скрипты для любого VPS: [docs/deploy.md](docs/deploy.md).
 Два экземпляра (ПК + облако) на общей базе Postgres, чтобы бот работал при выключенном
 компьютере: [docs/failover.md](docs/failover.md). Сторож зависаний, healthchecks.io и бэкапы
 базы в Telegram: [docs/watchdog.md](docs/watchdog.md). Локально в Docker:
@@ -114,6 +126,24 @@ Docker и скрипты для VPS: см. [docs/deploy.md](docs/deploy.md).
 ```bash
 docker compose up -d --build
 ```
+
+## Публичный поиск на бесплатной машине
+
+Пошаговый запуск на Oracle Cloud Always Free (ВМ не засыпает, в отличие от Render,
+Koyeb и Hugging Face Spaces) — в [docs/oracle.md](docs/oracle.md). Команды поиска —
+в [docs/research.md](docs/research.md).
+
+Секреты, которые нужно задать в `.env` на сервере (значения придумываете и храните только вы):
+
+| Переменная | Зачем |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` (синоним `BOT_TOKEN`) | Токен @BotFather |
+| `API_ID`, `API_HASH` | Приложение с https://my.telegram.org |
+| `TELEGRAM_SESSION` (синоним `SESSION_STRING`) | Строка сессии Telethon, не файл |
+| `ALLOWED_USER_IDS` | Кто может писать боту |
+| `DATABASE_URL` | Необязательно. Пусто или SQLite на диске ВМ; для эфемерного диска — `postgresql+asyncpg://…` (например Neon) |
+
+Строку сессии получают локально: `python -m tg_assistant.research.login`.
 
 ## Разработка
 
@@ -138,6 +168,7 @@ src/tg_assistant/
   db/              # модели SQLAlchemy, движок, работа с пользователями
   middlewares/     # доступ по белому списку, сессия БД и текущий пользователь
   reminders/       # разбор времени, планировщик отправки напоминаний
+  research/        # публичный поиск: Telethon, разбор запросов, наблюдения
   web/             # веб-интерфейс: сервер aiohttp, JSON API, вход, static/ со страницей
   handlers/        # обработчики команд и ошибок
   migrations/      # миграции Alembic

@@ -14,29 +14,29 @@ Cloudflare не нужен. Адрес выдаётся случайный (`htt
 
 ### Через Docker
 
-В `.env`:
-
-```
-WEB_APP_URL=
-COMPOSE_PROFILES=tunnel
-WEB_TUNNEL_METRICS_URL=http://cloudflared:2000
-```
+Ничего включать не нужно. `WEB_APP_URL` оставьте пустым и `WEB_TUNNEL` — `auto`
+(так и есть по умолчанию). Образ уже содержит `cloudflared`: при старте контейнер
+сам открывает туннель на свой порт и ставит кнопку «Открыть».
 
 ```bash
 docker compose up -d --build
 docker compose logs bot | grep "Mini App"   # Mini App is available at https://….trycloudflare.com
 ```
 
+Отдельный контейнер `cloudflared` нужен, только если свой процесс запускать не хотите:
+`WEB_TUNNEL=off`, `COMPOSE_PROFILES=tunnel` и
+`WEB_TUNNEL_METRICS_URL=http://cloudflared:2000`.
+
 ### Без Docker (Windows, macOS, Linux)
 
 1. Скачайте `cloudflared`: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-2. В отдельном окне терминала:
-   ```bash
-   cloudflared tunnel --url http://localhost:8080 --metrics localhost:2000
-   ```
-3. В `.env` бота: `WEB_APP_URL=` (пусто) и `WEB_TUNNEL_METRICS_URL=http://localhost:2000`.
-4. Запустите бота: `python -m tg_assistant`. В логе появится
+   и положите его в `PATH`.
+2. В `.env`: `WEB_APP_URL=` (пусто) и `WEB_TUNNEL=on`.
+3. Запустите бота: `python -m tg_assistant`. Он сам запустит `cloudflared`. В логе появится
    `Mini App is available at https://….trycloudflare.com`.
+
+Если туннель уже запущен вручную (`cloudflared tunnel --url http://localhost:8080 --metrics localhost:2000`),
+укажите только `WEB_TUNNEL_METRICS_URL=http://localhost:2000` — второй процесс бот не поднимет.
 
 Cloudflare называет такие туннели тестовыми: без гарантий доступности. Для постоянной
 работы лучше способ 2.

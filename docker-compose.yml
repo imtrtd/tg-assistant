@@ -27,9 +27,9 @@ services:
     volumes:
       - caddy_data:/data
 
-  # Бесплатный HTTPS без домена: быстрый туннель Cloudflare (адрес *.trycloudflare.com).
-  # Включается строкой COMPOSE_PROFILES=tunnel в .env. Бот сам узнаёт адрес у cloudflared
-  # (WEB_TUNNEL_METRICS_URL=http://cloudflared:2000) и ставит его в кнопку мини-приложения.
+  # Запасной туннель, если встроенный выключен (WEB_TUNNEL=off).
+  # Включается строкой COMPOSE_PROFILES=tunnel в .env вместе с
+  # WEB_TUNNEL_METRICS_URL=http://cloudflared:2000. По умолчанию cloudflared запускает сам бот.
   cloudflared:
     image: cloudflare/cloudflared:2025.8.0
     profiles: [tunnel]

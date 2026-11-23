@@ -8,7 +8,21 @@ import html
 from aiogram.types import BotCommand
 
 # Команды, которые имеют смысл только в личке: архив и одноразовая ссылка в браузер.
-PRIVATE_ONLY = frozenset({"archive", "chats", "deleted", "web", "topics"})
+PRIVATE_ONLY = frozenset(
+    {
+        "archive",
+        "chats",
+        "deleted",
+        "web",
+        "topics",
+        "search",
+        "sources",
+        "channel",
+        "watch",
+        "unwatch",
+        "watches",
+    }
+)
 
 COMMAND_SPECS: tuple[tuple[str, str], ...] = (
     ("start", "Главное меню"),
@@ -28,6 +42,12 @@ COMMAND_SPECS: tuple[tuple[str, str], ...] = (
     ("app", "Мини-приложение"),
     ("web", "Вход в браузере"),
     ("topics", "Пересоздать темы"),
+    ("search", "Публичные посты"),
+    ("sources", "Публичные каналы"),
+    ("channel", "Сводка канала"),
+    ("watch", "Наблюдение"),
+    ("unwatch", "Снять наблюдение"),
+    ("watches", "Список наблюдений"),
     ("help", "Справка и команды"),
 )
 
@@ -78,9 +98,7 @@ def command_help(commands: list[BotCommand] | None = None) -> str:
         lines.append(f"/{cmd.command} — {html.escape(desc)}")
     lines += [
         "",
-        "Теги: добавьте #тег в текст заметки и ищите через /find #тег.",
-        "Можно просто написать или переслать сообщение — бот предложит сохранить его"
-        " в заметки или поставить напоминание.",
+        "Теги заметок: /find #тег. Каналы: /sources, посты: /search, канал: /channel.",
     ]
     return "\n".join(lines)
 
