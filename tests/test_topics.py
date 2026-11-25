@@ -242,6 +242,16 @@ async def test_topics_off_changes_nothing(settings, session_factory, tbot, tg):
         assert await session.get(User, ALLOWED_ID) is not None
 
 
+async def test_topics_command_warns_while_users_can_create_topics(dp, tbot, tg):
+    dp["topics"].users_can_create = True
+    await dp.feed_update(tbot, msg("/topics"))
+    assert "создавать темы" in tg.of(SendMessage)[-1].text
+
+    dp["topics"].users_can_create = False
+    await dp.feed_update(tbot, msg("/topics", mid=2))
+    assert "создавать темы" not in tg.of(SendMessage)[-1].text
+
+
 async def test_topics_command_when_off_explains_botfather(settings, session_factory, tbot, tg):
     dp = create_dispatcher(settings, session_factory)
     await dp.feed_update(tbot, msg("/topics"))

@@ -83,7 +83,13 @@ async def _on_startup(
         settings.bot_username = me.username  # веб-страница рисует по нему кнопку входа
     # Режим тем в личке включается в @BotFather; тогда раскладываем всё по постоянным темам.
     topics.enabled = me.has_topics_enabled is True
+    topics.users_can_create = me.allows_users_to_create_topics
     if topics.enabled:
+        if topics.users_can_create is not False:
+            logger.warning(
+                "Users can create topics: Telegram makes a new topic for every message sent "
+                "outside topics. Turn this off in @BotFather (see docs/topics.md)."
+            )
         if not any(isinstance(m, TopicsRequestMiddleware) for m in bot.session.middleware):
             bot.session.middleware(TopicsRequestMiddleware(topics))
         await topics.refresh_app_messages(bot, settings)

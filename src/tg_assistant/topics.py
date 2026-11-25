@@ -177,6 +177,9 @@ class TopicRegistry:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self.session_factory = session_factory
         self.enabled = False  # включается при старте, если у бота включён режим тем
+        # Пока пользователям разрешено заводить темы, Telegram создаёт новую на каждое
+        # сообщение вне тем; выключается в @BotFather. None — настройка неизвестна.
+        self.users_can_create: bool | None = None
         self._cache: dict[int, dict[str, int]] = {}
         # Апдейты одного пользователя обрабатываются параллельно: без блокировки каждый
         # создавал бы свой набор тем. После flood control новые попытки откладываются.
@@ -369,16 +372,18 @@ class TopicsMiddleware(BaseMiddleware):
         token = STRAY.set((user_id, thread_id) if stray else None)
         try:
             with topic_kind(kind):
-                result = await handler(event, data)
+                return await handler(event, data)
         finally:
             STRAY.reset(token)
-        if stray:
-            # Тему создал Telegram под это сообщение; ответ уже ушёл в постоянную тему.
-            try:
-                await bot.delete_forum_topic(chat_id=user_id, message_thread_id=thread_id)
-            except TelegramAPIError:
-                logger.info("Could not delete stray topic %s for %s", thread_id, user_id)
-        return result
+            if stray:
+                # Тему создал Telegram под это сообщение; ответ уже ушёл в постоянную тему.
+                # Удаляем и при ошибке обработчика, иначе лишние темы копятся.
+                try:
+                    await bot.delete_forum_topic(chat_id=user_id, message_thread_id=thread_id)
+                except TelegramAPIError as exc:
+                    logger.warning(
+                        "Could not delete stray topic %s for %s: %s", thread_id, user_id, exc
+                    )
 
 
 class TopicsRequestMiddleware(BaseRequestMiddleware):
