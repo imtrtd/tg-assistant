@@ -12,6 +12,7 @@ from . import (
     research,
     topics,
     web,
+    wipe,
 )
 from .common import BOT_COMMANDS
 from .errors import on_error
@@ -32,6 +33,7 @@ def build_router() -> Router:
     router.include_router(business.create_router())
     router.include_router(topics.create_router())
     router.include_router(research.create_router())
+    router.include_router(wipe.create_router())
     # Последним: ловит всё, что не разобрали обработчики выше.
     router.include_router(capture.create_router())
     return router

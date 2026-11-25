@@ -123,6 +123,7 @@ COMMAND_KINDS = {
     "archive": ARCHIVE,
     "chats": ARCHIVE,
     "deleted": DELETED,
+    "wipe": HOME,
     "app": APP,
     "web": APP,
     "search": RESEARCH,

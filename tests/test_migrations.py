@@ -24,4 +24,4 @@ def test_migrations_create_schema(tmp_path):
     } <= tables
     with sqlite3.connect(db_path) as conn:
         columns = {row[1] for row in conn.execute("pragma table_info(users)")}
-    assert {"digest_time", "digest_next_at"} <= columns
+    assert {"digest_time", "digest_next_at", "wipe_password_hash"} <= columns
