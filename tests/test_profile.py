@@ -185,7 +185,7 @@ async def test_guide_section_sends_topics_and_pictures(bot, dp):
 
     await dp.feed_update(bot, _callback(buttons["🚀 Деплой и перезапуск"].callback_data))
     deploy = sent_methods(bot, SendMessage)[-1]
-    assert "./deploy/update.sh" in deploy.text
+    assert "/opt/tg-assistant/deploy/update.sh" in deploy.text
     assert deploy.link_preview_options.is_disabled
 
     await dp.feed_update(bot, _callback(buttons["🖼 Картинки для BotFather"].callback_data))

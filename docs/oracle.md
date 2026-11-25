@@ -71,7 +71,29 @@ curl -fsSL https://raw.githubusercontent.com/imtrtd/tg-assistant/main/deploy/set
 Скрипт ставит Docker, при нехватке памяти — файл подкачки 1 ГБ, клонирует репозиторий
 в `/opt/tg-assistant` и копирует `.env.example` в `.env`, если его ещё нет.
 
-Обновление позже: `sudo /opt/tg-assistant/deploy/update.sh`.
+### Обновление
+
+Сервер обновляется сам: таймер `tg-assistant-update` раз в 10 минут проверяет ветку
+`main` и, если там новые коммиты, запускает `deploy/update.sh` (копия базы, git pull,
+пересборка, перезапуск). После мержа бот обновится в течение ~10 минут, плюс время сборки.
+
+- Журнал: `journalctl -u tg-assistant-update -n 50`
+- Когда следующая проверка: `systemctl list-timers tg-assistant-update`
+- Обновить сейчас: `sudo /opt/tg-assistant/deploy/update.sh`
+- Выключить: `sudo systemctl disable --now tg-assistant-update.timer`
+  (или поставить заново с `AUTO_UPDATE=0`)
+
+Таймер ставит `setup-vps.sh`. На сервере, который настраивали раньше, его ставит
+та же команда, что и при первой установке, — она же обновит бота:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/imtrtd/tg-assistant/main/deploy/setup-vps.sh | sudo bash
+```
+
+**Деплой по кнопке с телефона.** GitHub → репозиторий → Actions → **Deploy** →
+Run workflow. Нужны секреты репозитория (Settings → Secrets and variables → Actions):
+`ORACLE_HOST` — IP сервера, `ORACLE_SSH_KEY` — приватный ключ целиком,
+`ORACLE_USER` — если пользователь не `ubuntu`. Без секретов кнопка ничего не делает.
 
 ## 3. Секреты на сервере
 
