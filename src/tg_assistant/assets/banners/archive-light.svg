@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640"><rect width="1280" height="640" fill="#F5F6FB"/><circle cx="1152.0" cy="64.0" r="320.0" fill="#4F62F0" opacity="0.08"/><circle cx="64.0" cy="608.0" r="204.8" fill="#4F62F0" opacity="0.06"/><rect x="760" y="90" width="420" height="460" rx="56" fill="#FFFFFF"/><rect x="760" y="90" width="420" height="460" rx="56" fill="none" stroke="#E3E7F1" stroke-width="2"/><text x="88" y="250" fill="#141824" font-family="Inter" font-weight="600" font-size="72">Архив чатов</text><text x="88" y="318" fill="#5E677C" font-family="Inter" font-weight="400" font-size="28">Правки и удаления в личных чатах</text>
-    <g transform="translate(830 160) scale(3.75)">
-      <rect x="16" y="14" width="52" height="40" rx="8" fill="#4F62F0"/>
-      <rect x="8" y="26" width="52" height="40" rx="8" fill="#F7F8FC"/>
-      <path d="M20 44h28M20 54h16" stroke="#4F62F0" stroke-width="3.2" stroke-linecap="round"/>
-    </g>
-    </svg>

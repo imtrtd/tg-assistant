@@ -70,12 +70,9 @@ def test_profile_texts_fit_telegram_limits():
 
 def test_asset_dimensions():
     assert _png_size(ASSETS / "avatar.png") == (640, 640)
-    assert _png_size(ASSETS / "avatar-light.png") == (640, 640)
     assert _png_size(ASSETS / "description.png") == (640, 360)
-    assert _png_size(ASSETS / "description-light.png") == (640, 360)
     for name in ("home", "notes", "reminders", "archive", "digest", "settings", "app"):
         assert _png_size(ASSETS / "banners" / f"{name}.png") == (1280, 640)
-        assert _png_size(ASSETS / "banners" / f"{name}-light.png") == (1280, 640)
     static = ROOT / "src" / "tg_assistant" / "web" / "static"
     assert _png_size(static / "icon-180.png") == (180, 180)
     assert _png_size(static / "icon-192.png") == (192, 192)

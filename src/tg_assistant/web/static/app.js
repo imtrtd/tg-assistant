@@ -675,8 +675,10 @@ async function start() {
     tg.ready();
     tg.expand();
     try {
-      tg.setHeaderColor("secondary_bg_color");
-      tg.setBackgroundColor("secondary_bg_color");
+      // Приложение всегда тёмное (дизайн-система imtrtd): шапка и фон Telegram — цвета ink.
+      tg.setHeaderColor("#0a0a0f");
+      tg.setBackgroundColor("#0a0a0f");
+      if (tg.setBottomBarColor) tg.setBottomBarColor("#0a0a0f");
     } catch {
       /* старый клиент Telegram */
     }
