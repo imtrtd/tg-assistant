@@ -1,12 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-    <rect width="64" height="64" rx="16" fill="#4F62F0"/>
-    <g transform="translate(6 6) scale(0.65)">
-    <rect x="8" y="6" width="48" height="62" rx="8" fill="#FFFFFF"/>
-    <path d="M40 6h16v16H46a6 6 0 0 1-6-6V6z" fill="#E4E8F5"/>
-    <path d="M20 32h26M20 42h26M20 52h16" stroke="#F0B429" stroke-width="3.4"
-          stroke-linecap="round" fill="none"/>
-    <circle cx="60" cy="62" r="16" fill="#F0B429"/>
-    <path d="M60 54.5V63l5.5 3.2" stroke="#FFFFFF" stroke-width="2.6"
-          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    </g>
-    </svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#0a0a0f"/><path d="M8 8H48.32L56 15.68V56H15.68L8 48.32Z" fill="#b28dff"/><text x="32" y="39.68" font-family="'Space Grotesk', Arimo, Arial, sans-serif" font-size="22" font-weight="600" letter-spacing="-0.96" fill="#0a0a0f" text-anchor="middle" >TA</text></svg>
