@@ -64,7 +64,7 @@ jobs:
           "
       - name: В образе есть cloudflared для мини-приложения
         run: docker run --rm --entrypoint cloudflared tg-assistant --version
-      - run: bash -n deploy/setup-vps.sh deploy/update.sh deploy/backup.sh deploy/failover/compose.sh
+      - run: bash -n deploy/setup-vps.sh deploy/update.sh deploy/auto-update.sh deploy/backup.sh deploy/failover/compose.sh
       - name: Схема «ПК + облако» собирается
         run: |
           touch .env

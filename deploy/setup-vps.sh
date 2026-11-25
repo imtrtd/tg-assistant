@@ -7,6 +7,8 @@ set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/imtrtd/tg-assistant.git}"
 APP_DIR="${APP_DIR:-/opt/tg-assistant}"
+# Автообновление из main раз в 10 минут (таймер systemd). AUTO_UPDATE=0 — не ставить.
+AUTO_UPDATE="${AUTO_UPDATE:-1}"
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Запустите скрипт от root: sudo bash $0" >&2
@@ -46,6 +48,37 @@ mkdir -p data backups
 # Контейнер работает от пользователя с uid 1000 — ему нужен доступ к базе.
 chown -R 1000:1000 data
 
+if [ "$AUTO_UPDATE" = "1" ]; then
+    echo "==> Автообновление: таймер tg-assistant-update (раз в 10 минут)"
+    cat > /etc/systemd/system/tg-assistant-update.service <<UNIT
+[Unit]
+Description=tg-assistant: update from GitHub if main changed
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=$APP_DIR
+ExecStart=$APP_DIR/deploy/auto-update.sh
+UNIT
+    cat > /etc/systemd/system/tg-assistant-update.timer <<UNIT
+[Unit]
+Description=tg-assistant: check for updates every 10 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl daemon-reload
+    systemctl enable --now tg-assistant-update.timer
+else
+    systemctl disable --now tg-assistant-update.timer 2>/dev/null || true
+fi
+
 if [ ! -f .env ]; then
     cp .env.example .env
     chmod 600 .env
@@ -59,7 +92,8 @@ if [ ! -f .env ]; then
        cd $APP_DIR && docker compose up -d --build
 
 Логи:        docker compose logs -f
-Обновление:  $APP_DIR/deploy/update.sh
+Обновление:  само, раз в 10 минут (журнал: journalctl -u tg-assistant-update)
+             или вручную: $APP_DIR/deploy/update.sh
 MSG
 else
     echo "==> .env уже есть, пересобираю и перезапускаю бота"

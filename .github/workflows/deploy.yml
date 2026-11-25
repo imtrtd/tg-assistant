@@ -1,0 +1,47 @@
+# Деплой на Oracle VPS по кнопке: Actions → Deploy → Run workflow (работает и с телефона).
+# Подключается по SSH и запускает deploy/update.sh. Обычно не нужен: сервер сам
+# обновляется из main раз в 10 минут (таймер tg-assistant-update, см. docs/oracle.md).
+#
+# Секреты репозитория (Settings → Secrets and variables → Actions):
+#   ORACLE_HOST     — публичный IP сервера
+#   ORACLE_SSH_KEY  — приватный SSH-ключ (весь файл, с BEGIN/END)
+#   ORACLE_USER     — необязательно, по умолчанию ubuntu
+# Без секретов workflow ничего не делает и пишет, что их нет.
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HOST: ${{ secrets.ORACLE_HOST }}
+      USER_NAME: ${{ secrets.ORACLE_USER || 'ubuntu' }}
+      SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+    steps:
+      - name: Проверить секреты
+        id: guard
+        run: |
+          if [ -z "$HOST" ] || [ -z "$SSH_KEY" ]; then
+            echo "::warning::Нет секретов ORACLE_HOST / ORACLE_SSH_KEY — деплой пропущен. Сервер обновится сам таймером."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Обновить и перезапустить бота
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -T 15 "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$USER_NAME@$HOST" \
+            'sudo /opt/tg-assistant/deploy/update.sh && cd /opt/tg-assistant && sudo docker compose logs --tail=30 bot'
