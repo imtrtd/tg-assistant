@@ -190,7 +190,11 @@ async def test_guide_section_sends_topics_and_pictures(bot, dp):
 
     await dp.feed_update(bot, _callback(buttons["🖼 Картинки для BotFather"].callback_data))
     docs = sent_methods(bot, SendDocument)
-    assert [d.caption.split(":")[0] for d in docs] == ["Аватар", "Картинка в пустом чате"]
+    assert [d.caption.split(":")[0] for d in docs] == [
+        "Аватар",
+        "Картинка в пустом чате",
+        "Иконка загрузки",
+    ]
 
 
 def _callback(data: str):

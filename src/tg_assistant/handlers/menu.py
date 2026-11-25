@@ -121,6 +121,11 @@ async def send_guide(message: Message, topic: str) -> None:
         for name, caption in (
             ("avatar.png", "Аватар: @BotFather → /setuserpic"),
             ("description.png", "Картинка в пустом чате: @BotFather → /setdescriptionpic"),
+            (
+                "splash.svg",
+                "Иконка загрузки: @BotFather → Mini Apps → Launch Screen → Set Splash Icon. "
+                "Фон и шапка: #0a0a0f в Light и Dark Mode",
+            ),
         ):
             await message.answer_document(FSInputFile(ASSETS / name), caption=caption)
         return
