@@ -63,6 +63,8 @@ class User(Base):
     # Архив чатов (Telegram Business): присылать ли изменённые и удалённые сообщения.
     notify_edits: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     notify_deletes: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Пароль для /wipe: хеш scrypt «scrypt$соль$хеш» (None — пароль не задан).
+    wipe_password_hash: Mapped[str | None] = mapped_column(String(200))
 
 
 class Note(Base):
