@@ -8,6 +8,7 @@ from aiogram.methods import (
     SetChatMenuButton,
     SetMyCommands,
     SetMyDescription,
+    SetMySettings,
     SetMyShortDescription,
 )
 from aiogram.types import (
@@ -112,6 +113,16 @@ async def test_startup_registers_commands_and_descriptions(bot, dp):
 
         (menu,) = sent_methods(bot, SetChatMenuButton)
         assert isinstance(menu.menu_button, MenuButtonCommands)
+
+        (bot_settings,) = sent_methods(bot, SetMySettings)
+        assert bot_settings.has_topics_enabled is True
+        assert bot_settings.allows_users_to_create_topics is False
+        assert bot_settings.has_topic_sidebar is True
+        assert bot_settings.can_connect_to_business is True
+        assert bot_settings.supports_inline_queries is True
+        # группы и privacy mode не трогаем: они остаются как в @BotFather
+        assert bot_settings.can_join_groups is None
+        assert bot_settings.can_read_all_group_messages is None
     finally:
         await dp.emit_shutdown(bot=bot, **data)
 

@@ -34,6 +34,21 @@ logger = logging.getLogger(__name__)
 ASSETS = Path(__file__).resolve().parent / "assets"
 MENU_BUTTON_TEXT = "Открыть"
 
+# Что бот выставляет себе через setMySettings. Остальное (группы, privacy mode,
+# работа с другими ботами) не трогаем — оно остаётся как в @BotFather.
+BOT_SETTINGS = {
+    # темы в личке: бот сам создаёт постоянные (topics.py)
+    "has_topics_enabled": True,
+    # иначе Telegram заводит новую тему на каждое сообщение вне тем
+    "allows_users_to_create_topics": False,
+    # список тем боковой панелью
+    "has_topic_sidebar": True,
+    # архив чатов работает через Telegram Business
+    "can_connect_to_business": True,
+    # «@бот текст» в любом чате сохраняет заметку (handlers/mention.py)
+    "supports_inline_queries": True,
+}
+
 
 def banner_file(section: str) -> Path:
     return ASSETS / "banners" / f"{section}.png"
@@ -63,6 +78,8 @@ async def setup_bot_profile(bot: Bot, settings: Settings) -> None:
             bot.set_my_short_description(text, language_code=language),
         )
     await setup_menu_button(bot, settings)
+    if settings.bot_settings_sync:
+        await _try("bot settings", bot.set_my_settings(**BOT_SETTINGS))
 
 
 async def setup_menu_button(bot: Bot, settings: Settings) -> None:
