@@ -42,6 +42,10 @@ class Settings(DatabaseSettings):
     web_tunnel: str = "auto"
     # Имя бота без @ — для кнопки «Войти через Telegram». Пусто — бот узнаёт его сам при старте.
     bot_username: str = ""
+    # Бот сам ставит себе настройки при старте (setMySettings): темы в личке без
+    # создания новых пользователем, список тем сбоку, Business и inline mode.
+    # false — не трогать, всё настраивается вручную в @BotFather.
+    bot_settings_sync: bool = True
     web_host: str = "0.0.0.0"
     # PORT — так порт передают хостинги (Railway, Render, Fly.io).
     web_port: int = Field(8080, validation_alias=AliasChoices("WEB_PORT", "PORT", "web_port"))
