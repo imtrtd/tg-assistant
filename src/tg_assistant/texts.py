@@ -470,3 +470,83 @@ def admin_error(update_id: int, exc_type: str, exc_text: str, trace: str) -> str
 def bot_started(node_name: str) -> str:
     """Администраторам: узел начал работу (после запуска или переключения ПК ↔ облако)."""
     return f"🟢 Бот работает на узле <code>{html.escape(node_name)}</code>."
+
+
+# --- инструкции (раздел «📖 Инструкции» в меню) ------------------------------
+
+REPO_URL = "https://github.com/imtrtd/tg-assistant"
+DOCS_URL = f"{REPO_URL}/tree/main/docs"
+BOTFATHER_URL = "https://t.me/BotFather"
+
+
+def _doc(name: str, title: str) -> str:
+    return f'<a href="{REPO_URL}/blob/main/docs/{name}">{title}</a>'
+
+
+def screen_guide() -> str:
+    return (
+        "📖 <b>Инструкции</b>\n\n"
+        "Всё, что настраивается вне бота: деплой, @BotFather, архив чатов, "
+        "стирание данных. Выберите тему — ответ придёт отдельным сообщением."
+    )
+
+
+GUIDES = {
+    "deploy": (
+        "🚀 <b>Деплой и перезапуск</b>\n\n"
+        "Бот обновляется из ветки <code>main</code>. После каждого обновления "
+        "миграции базы применяются сами.\n\n"
+        "<b>ПК или VPS (Docker)</b>, в папке бота:\n"
+        "<code>./deploy/update.sh</code> — копия базы, git pull, пересборка, перезапуск.\n"
+        "Только перезапуск: <code>docker compose restart</code>\n"
+        "Логи: <code>docker compose logs -f --tail=50</code>\n\n"
+        "<b>Railway</b>: собирается сам после мержа в main. "
+        "Перезапуск — Deployments → ⋯ → Restart.\n"
+        "<b>Render</b>: Manual Deploy → Deploy latest commit.\n\n"
+        "Всё в порядке, если в логе есть <code>Bot @… started</code> "
+        "и <code>Topics mode is on</code>.\n\n"
+        f"Подробно: {_doc('deploy.md', 'deploy.md')}, "
+        f"{_doc('oracle.md', 'oracle.md')} (бесплатный VPS), "
+        f"{_doc('railway.md', 'railway.md')}"
+    ),
+    "botfather": (
+        "🤖 <b>@BotFather — один раз</b>\n\n"
+        "• Аватар: <code>/setuserpic</code> → файл <code>avatar.png</code>\n"
+        "• Картинка в пустом чате: <code>/setdescriptionpic</code> → "
+        "<code>description.png</code>\n"
+        "Оба файла пришлёт кнопка «🖼 Картинки для BotFather».\n\n"
+        "• Вход на сайте через Telegram: <code>/setdomain</code> → домен из WEB_APP_URL.\n\n"
+        "Темы, список тем сбоку, Business и inline mode бот ставит себе сам "
+        "при каждом запуске. Выключить это — <code>BOT_SETTINGS_SYNC=false</code>.\n\n"
+        f"Подробно: {_doc('appearance.md', 'appearance.md')}"
+    ),
+    "archive": (
+        "🗄 <b>Архив чатов</b>\n\n"
+        "Бот сохраняет личные переписки и присылает изменённые и удалённые "
+        "собеседниками сообщения. Нужен Telegram Premium.\n\n"
+        "1. Telegram → Настройки → Telegram Business → Чат-боты.\n"
+        "2. Выберите этого бота и чаты.\n"
+        "3. Проверьте: /archive покажет подключение.\n\n"
+        "В бизнес-чаты бот ничего не пишет — только вам в личку.\n\n"
+        f"Подробно: {_doc('archive.md', 'archive.md')}"
+    ),
+    "wipe": (
+        "🔐 <b>Стирание данных</b>\n\n"
+        "1. Задать пароль: <code>/wipe set пароль</code> (от 6 символов). "
+        "Сменить: <code>/wipe set старый новый</code>.\n"
+        "2. <code>/wipe</code> — кнопки: архив чатов, всё в базе, сообщения в чате.\n"
+        "3. Ввести пароль одним сообщением, бот его сразу удалит.\n\n"
+        "Удаление необратимо. Пять неверных паролей — блокировка на 15 минут.\n\n"
+        f"Подробно: {_doc('wipe.md', 'wipe.md')}"
+    ),
+    "app": (
+        "📱 <b>Приложение и темы</b>\n\n"
+        "Мини-приложение: кнопка «Открыть» слева от поля ввода или /app. "
+        "В браузере — /web (одноразовая ссылка).\n\n"
+        "Темы: ответы бот раскладывает по постоянным темам сам. "
+        "Удалили тему — /topics создаст её заново. Лишние старые темы удаляются "
+        "вручную: долгое нажатие на тему → Удалить.\n\n"
+        f"Подробно: {_doc('mini-app.md', 'mini-app.md')}, "
+        f"{_doc('topics.md', 'topics.md')}"
+    ),
+}

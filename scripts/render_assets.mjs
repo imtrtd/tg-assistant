@@ -215,6 +215,7 @@ const BANNERS = {
   digest: ["04", "Сводка", "План на день каждое утро", ["/digest"]],
   settings: ["05", "Настройки", "Пояс, сводка и экспорт", ["/timezone", "/digest"]],
   app: ["06", "Приложение", "Заметки и напоминания в одном окне", ["/app", "/web"]],
+  guide: ["07", "Инструкции", "Деплой, @BotFather, архив и стирание", ["/topics", "/wipe"]],
 };
 
 const CX = 744;
@@ -339,6 +340,25 @@ const CARDS = {
     b += label(CX + CW / 2, CY + 366, "открыть  →", 20, INK, "middle");
     return b;
   },
+};
+
+CARDS.guide = function () {
+  let b = card(CX, CY, CW, CH);
+  b += label(CX + 40, CY + 66, "чек-лист", 20, SIGNAL);
+  const items = [
+    ["01", "Деплой и перезапуск"],
+    ["02", "Картинки в @BotFather"],
+    ["03", "Архив: Business"],
+    ["04", "Пароль: /wipe set"],
+    ["05", "Приложение и темы"],
+  ];
+  items.forEach(([n, s], i) => {
+    const y = CY + 134 + i * 60;
+    b += label(CX + 40, y, n, 17, SIGNAL);
+    b += text(CX + 96, y + 1, s, { size: 26, fill: PAPER });
+    b += `<rect x="${CX + 40}" y="${y + 24}" width="${CW - 80}" height="1.5" fill="${HAIR}"/>`;
+  });
+  return b;
 };
 
 function banner(name) {
