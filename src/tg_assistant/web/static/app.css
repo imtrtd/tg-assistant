@@ -1942,6 +1942,342 @@ p {
   border-left-color: var(--color-signal);
 }
 
+/* --- мягкий слой (по мотивам страницы Practice на imtrtd.space) ----------
+   Скруглений по-прежнему нет — дизайн-система их запрещает. Мягче за счёт:
+   сплошных панелей со срезом одного угла (cut-lg), тонированных выделений
+   вместо жёстких рамок, свечения акцента, воздуха и строчных подписей —
+   капсом остаются только кнопки, индексы дней и бейджи. */
+
+:root {
+  --cut-lg: 14px;
+  --panel: var(--color-ink-soft);
+  --tint: rgb(178 141 255 / 0.08);
+  --tint-strong: rgb(178 141 255 / 0.16);
+  --glow-soft: rgb(123 92 255 / 0.22);
+}
+
+body {
+  background-image:
+    radial-gradient(60% 40% at 100% 0%, var(--glow-soft), transparent 70%),
+    radial-gradient(1px 1px at 12% 18%, rgb(243 239 250 / 0.5), transparent 60%),
+    radial-gradient(1px 1px at 68% 9%, rgb(243 239 250 / 0.35), transparent 60%),
+    radial-gradient(1px 1px at 84% 34%, rgb(178 141 255 / 0.55), transparent 60%),
+    radial-gradient(1px 1px at 27% 61%, rgb(243 239 250 / 0.3), transparent 60%),
+    radial-gradient(1px 1px at 52% 83%, rgb(178 141 255 / 0.4), transparent 60%),
+    radial-gradient(1px 1px at 91% 72%, rgb(243 239 250 / 0.3), transparent 60%);
+  background-size: 100% 100%, 420px 420px, 420px 420px, 420px 420px, 420px 420px, 420px 420px,
+    420px 420px;
+  background-repeat: no-repeat, repeat, repeat, repeat, repeat, repeat, repeat;
+}
+
+/* сплошные панели, срезан только правый верхний угол */
+.composer {
+  background: var(--panel);
+}
+
+.card,
+.stat,
+.settings,
+.chat-head,
+.gate-card {
+  background: var(--panel);
+  border-color: var(--color-hair);
+  clip-path: polygon(0 0, calc(100% - var(--cut-lg)) 0, 100% var(--cut-lg), 100% 100%, 0 100%);
+}
+
+.card {
+  padding: 16px 10px 6px 18px;
+  transition:
+    transform 0.4s var(--ease),
+    border-color 0.2s;
+}
+
+.card:hover {
+  border-color: var(--color-hair-strong);
+}
+
+.list {
+  gap: 12px;
+}
+
+/* строчные подписи вместо капса */
+.topbar p,
+.tab,
+.stat span,
+.field > span,
+.chip,
+.act,
+.link-btn,
+.segmented button,
+.footer,
+.repeat,
+.chat-row-side,
+.archive-counts span,
+.bubble-who {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.topbar p {
+  font-size: 14px;
+  color: var(--color-fog);
+}
+
+.topbar h1 {
+  font-size: 28px;
+}
+
+/* сводка: без жёсткой полосы, с мягким свечением в углу */
+.stats {
+  gap: 10px;
+}
+
+.stat {
+  border-top: 1px solid var(--color-hair);
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--tint-strong), transparent 60%),
+    var(--panel);
+  padding: 16px 14px 14px;
+}
+
+.stat b {
+  font-size: 28px;
+  text-overflow: clip;
+}
+
+.stat span {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-mute);
+}
+
+/* вкладки: выбранная — тонированная плашка с акцентной рамкой */
+.tabs {
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--color-hair);
+  background: rgb(20 20 28 / 0.9);
+}
+
+.tab {
+  padding: 11px 2px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 1px solid transparent;
+}
+
+.tab[aria-selected="true"] {
+  color: var(--color-paper);
+}
+
+.tab-thumb {
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  height: auto;
+  width: calc((100% - 24px) / 3);
+  background: var(--tint-strong);
+  border: 1px solid var(--color-signal);
+}
+
+.tabs[data-active="reminders"] .tab-thumb {
+  transform: translateX(calc(100% + 6px));
+}
+
+.tabs[data-active="archive"] .tab-thumb {
+  transform: translateX(calc(200% + 12px));
+}
+
+.count {
+  border: 0;
+  background: var(--tint-strong);
+  color: var(--color-signal);
+  font-family: var(--font-mono);
+}
+
+.count.alert {
+  background: rgb(255 43 214 / 0.16);
+  color: var(--color-error);
+}
+
+/* основная кнопка — градиент violet → deep, как на Practice */
+.btn.primary {
+  background: linear-gradient(135deg, var(--color-signal), var(--color-signal-deep));
+  color: var(--color-ink);
+  box-shadow: 0 8px 28px -14px var(--color-signal-deep);
+}
+
+.btn.primary:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.btn.ghost {
+  border-color: var(--color-hair);
+  background: var(--tint);
+}
+
+.composer {
+  padding: 6px 6px 6px 16px;
+  border-color: var(--color-hair);
+}
+
+.search {
+  border-color: var(--color-hair);
+  background: rgb(20 20 28 / 0.7);
+}
+
+/* чипсы быстрого выбора: тихие, строчные */
+.chip {
+  padding: 8px 13px;
+  font-size: 14px;
+  color: var(--color-fog);
+  background: rgb(20 20 28 / 0.6);
+  border-color: var(--color-hair);
+}
+
+.chip:hover,
+.chip[aria-pressed="true"] {
+  background: var(--tint-strong);
+  border-color: var(--color-signal);
+  color: var(--color-paper);
+}
+
+/* карточки */
+.tag {
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.card-foot {
+  font-size: 13px;
+}
+
+.act {
+  font-size: 13px;
+  color: var(--color-mute);
+}
+
+.act:hover {
+  border-color: transparent;
+  background: var(--tint);
+  color: var(--color-paper);
+}
+
+.act.confirm,
+.act.confirm:hover {
+  background: rgb(255 43 214 / 0.12);
+  border-color: transparent;
+}
+
+/* напоминания: время на тонированной плашке, без рамки */
+.reminder {
+  padding: 12px 10px 12px 14px;
+}
+
+.time {
+  border: 0;
+  background: var(--tint-strong);
+  color: var(--color-paper);
+  font-size: 1rem;
+  padding: 9px 0;
+}
+
+.repeat {
+  font-size: 13px;
+  color: var(--color-signal);
+}
+
+.day {
+  margin-top: 18px;
+}
+
+/* пустое состояние: значок на тонированной плашке со срезом */
+.empty svg {
+  width: 64px;
+  height: 64px;
+  padding: 14px;
+  background: var(--tint-strong);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+.empty span {
+  color: var(--color-mute);
+}
+
+/* настройки */
+.field > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-fog);
+}
+
+.link-btn {
+  font-size: 14px;
+}
+
+.switch-track {
+  border-color: var(--color-hair-strong);
+  background: rgb(10 10 15 / 0.6);
+}
+
+.switch input:checked + .switch-track {
+  background: var(--tint-strong);
+}
+
+/* архив */
+.segmented {
+  gap: 6px;
+  padding: 6px;
+  border-color: var(--color-hair);
+  background: rgb(20 20 28 / 0.9);
+}
+
+.segmented button {
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.segmented button[aria-selected="true"] {
+  background: var(--tint-strong);
+  border-color: var(--color-signal);
+  color: var(--color-paper);
+}
+
+.archive-counts span {
+  font-size: 12.5px;
+  color: var(--color-mute);
+}
+
+.avatar.small {
+  border: 0;
+  background: var(--tint-strong);
+  color: var(--color-paper);
+}
+
+.chat-row {
+  border-bottom: 1px solid var(--color-hair);
+}
+
+.chat-row-side {
+  font-size: 13px;
+}
+
+.bubble-who {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.footer {
+  border-top: 0;
+  font-size: 13px;
+  color: var(--color-mute);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
