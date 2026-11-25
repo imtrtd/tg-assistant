@@ -4,6 +4,8 @@ from pathlib import Path
 
 from aiogram.methods import (
     EditMessageText,
+    SendDocument,
+    SendMessage,
     SendPhoto,
     SetChatMenuButton,
     SetMyCommands,
@@ -72,7 +74,7 @@ def test_profile_texts_fit_telegram_limits():
 def test_asset_dimensions():
     assert _png_size(ASSETS / "avatar.png") == (640, 640)
     assert _png_size(ASSETS / "description.png") == (640, 360)
-    for name in ("home", "notes", "reminders", "archive", "digest", "settings", "app"):
+    for name in ("home", "notes", "reminders", "archive", "digest", "settings", "app", "guide"):
         assert _png_size(ASSETS / "banners" / f"{name}.png") == (1280, 640)
     static = ROOT / "src" / "tg_assistant" / "web" / "static"
     assert _png_size(static / "icon-180.png") == (180, 180)
@@ -163,6 +165,32 @@ async def test_start_menu_navigates_back(bot, dp):
 async def test_reply_keyboard_opens_notes(bot, dp):
     await dp.feed_update(bot, update_from(ALLOWED_ID, "📝 Заметки"))
     assert "Заметок пока нет" in sent_texts(bot)[-1]
+
+
+async def test_guide_section_sends_topics_and_pictures(bot, dp):
+    await dp.feed_update(bot, update_from(ALLOWED_ID, "/start"))
+    photo = sent_methods(bot, SendPhoto)[0]
+    guide = next(
+        button
+        for row in photo.reply_markup.inline_keyboard
+        for button in row
+        if button.text == "📖 Инструкции"
+    )
+    await dp.feed_update(bot, _callback(guide.callback_data))
+    screen = sent_methods(bot, EditMessageText)[-1]
+    assert "Инструкции" in screen.text
+    buttons = {b.text: b for row in screen.reply_markup.inline_keyboard for b in row}
+    assert buttons["📚 Документация"].url.endswith("/docs")
+    assert buttons["↗ @BotFather"].url == "https://t.me/BotFather"
+
+    await dp.feed_update(bot, _callback(buttons["🚀 Деплой и перезапуск"].callback_data))
+    deploy = sent_methods(bot, SendMessage)[-1]
+    assert "./deploy/update.sh" in deploy.text
+    assert deploy.link_preview_options.is_disabled
+
+    await dp.feed_update(bot, _callback(buttons["🖼 Картинки для BotFather"].callback_data))
+    docs = sent_methods(bot, SendDocument)
+    assert [d.caption.split(":")[0] for d in docs] == ["Аватар", "Картинка в пустом чате"]
 
 
 def _callback(data: str):

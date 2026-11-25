@@ -11,6 +11,7 @@ from aiogram.types import (
     FSInputFile,
     InlineKeyboardMarkup,
     InputMediaPhoto,
+    LinkPreviewOptions,
     Message,
     ReplyKeyboardMarkup,
     WebAppInfo,
@@ -18,10 +19,13 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..branding import banner_file
+from ..branding import ASSETS, banner_file
 from ..config import Settings
 from ..db import User
 from ..texts import (
+    BOTFATHER_URL,
+    DOCS_URL,
+    GUIDES,
     REPLY_DIGEST,
     REPLY_MENU,
     REPLY_NOTES,
@@ -29,6 +33,7 @@ from ..texts import (
     screen_app,
     screen_archive,
     screen_digest,
+    screen_guide,
     screen_notes,
     screen_reminders,
     screen_settings,
@@ -58,6 +63,7 @@ def main_keyboard(settings: Settings) -> InlineKeyboardMarkup:
         kb.button(text="📱 Мини-приложение", web_app=WebAppInfo(url=settings.web_app_url))
     else:
         kb.button(text="📱 Мини-приложение", callback_data=MenuCb(section="app"))
+    kb.button(text="📖 Инструкции", callback_data=MenuCb(section="guide"))
     kb.adjust(2)
     return kb.as_markup()
 
@@ -81,9 +87,48 @@ def section_keyboard(section: str, settings: Settings) -> InlineKeyboardMarkup:
         kb.button(text="Выгрузить заметки", callback_data=MenuCb(section="open-export"))
     elif section == "app" and settings.mini_app_enabled:
         kb.button(text="Открыть", web_app=WebAppInfo(url=settings.web_app_url))
+    elif section == "guide":
+        return guide_keyboard()
     kb.button(text="← Назад", callback_data=MenuCb(section="home"))
     kb.adjust(1)
     return kb.as_markup()
+
+
+GUIDE_BUTTONS = (
+    ("🚀 Деплой и перезапуск", "deploy"),
+    ("🤖 @BotFather", "botfather"),
+    ("🖼 Картинки для BotFather", "pics"),
+    ("🗄 Архив чатов", "archive"),
+    ("🔐 Стирание данных", "wipe"),
+    ("📱 Приложение и темы", "app"),
+)
+
+
+def guide_keyboard() -> InlineKeyboardMarkup:
+    kb = InlineKeyboardBuilder()
+    for text, topic in GUIDE_BUTTONS:
+        kb.button(text=text, callback_data=MenuCb(section=f"guide-{topic}"))
+    kb.button(text="📚 Документация", url=DOCS_URL)
+    kb.button(text="↗ @BotFather", url=BOTFATHER_URL)
+    kb.button(text="← Назад", callback_data=MenuCb(section="home"))
+    kb.adjust(1, 2, 2, 1, 2, 1)
+    return kb.as_markup()
+
+
+async def send_guide(message: Message, topic: str) -> None:
+    """Тема инструкции отдельным сообщением; «pics» — картинки для @BotFather файлами."""
+    if topic == "pics":
+        for name, caption in (
+            ("avatar.png", "Аватар: @BotFather → /setuserpic"),
+            ("description.png", "Картинка в пустом чате: @BotFather → /setdescriptionpic"),
+        ):
+            await message.answer_document(FSInputFile(ASSETS / name), caption=caption)
+        return
+    await message.answer(
+        GUIDES[topic],
+        parse_mode="HTML",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
 
 
 def reply_keyboard() -> ReplyKeyboardMarkup:
@@ -121,6 +166,8 @@ def _caption(section: str, user: User, settings: Settings, extra: object = _NO_E
         return screen_settings(user.timezone, user.digest_time, hm)
     if section == "app":
         return screen_app(web_enabled=settings.web_enabled, mini_app=settings.mini_app_enabled)
+    if section == "guide":
+        return screen_guide()
     return welcome(user.first_name)
 
 
@@ -199,7 +246,25 @@ async def on_menu(
         await query.answer()
         await cmd_export(message, session, user)
         return
-    if section not in {"home", "notes", "reminders", "archive", "digest", "settings", "app"}:
+    topic = section.removeprefix("guide-")
+    if (
+        section.startswith("guide-")
+        and message is not None
+        and (topic in GUIDES or topic == "pics")
+    ):
+        await query.answer()
+        await send_guide(message, topic)
+        return
+    if section not in {
+        "home",
+        "notes",
+        "reminders",
+        "archive",
+        "digest",
+        "settings",
+        "app",
+        "guide",
+    }:
         section = "home"
     await _edit_screen(query, section, user, settings)
 
