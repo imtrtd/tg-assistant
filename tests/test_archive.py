@@ -295,7 +295,7 @@ async def test_chats_list_and_export_file(bot, dp, connected):
     await dp.feed_update(bot, biz_message(51, "стало", sender=OWNER, edited=True))
     await dp.feed_update(bot, deleted(50))
 
-    await dp.feed_update(bot, update_from(ALLOWED_ID, "/chats"))
+    await dp.feed_update(bot, callback_from(ALLOWED_ID, ArchCb(action="chats").pack()))
     assert "Пётр" in sent_texts(bot)[-1] and "удалено 1" in sent_texts(bot)[-1]
 
     data = ArchCb(action="export", chat_id=FRIEND.id).pack()
@@ -457,3 +457,30 @@ async def test_concurrent_store_returns_existing(session_factory, monkeypatch):
         row = await repo.store(second, ALLOWED_ID, message)
 
     assert row.id == original_id
+
+
+async def test_admin_sees_any_account_archive(bot, dp, session_factory, connected):
+    settings = dp.workflow_data["settings"]
+    dp.workflow_data["settings"] = settings.model_copy(
+        update={"admin_ids": frozenset({ALLOWED_ID})}
+    )
+    async with session_factory() as session:
+        session.add(
+            ArchivedMessage(
+                owner_id=999,
+                chat_id=1,
+                chat_title="чужой",
+                message_id=1,
+                sender_id=1,
+                sender_name="x",
+                outgoing=False,
+                text="секрет",
+                sent_at=T0,
+                deleted_at=T0,
+            )
+        )
+        await session.commit()
+    await dp.feed_update(bot, update_from(ALLOWED_ID, "/archive"))
+    assert "999" in sent_texts(bot)[-1]
+    await dp.feed_update(bot, update_from(ALLOWED_ID, "/deleted 999"))
+    assert "секрет" in sent_texts(bot)[-1]

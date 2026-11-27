@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (
     BufferedInputFile,
@@ -67,20 +67,56 @@ def _status_markup(user: User, settings: Settings) -> InlineKeyboardMarkup:
     return kb.as_markup()
 
 
-async def _status_text(session: AsyncSession, user: User) -> str:
-    connected = await repo.has_active_connection(session, user.id)
-    chats, messages, edited, deleted = await repo.counts(session, user.id)
+def _target(user: User, settings: Settings, arg: str) -> int | None:
+    """Чей архив показать: свой, либо для админа — указанный id аккаунта."""
+    if not arg or user.id not in settings.admin_ids:
+        return user.id
+    return int(arg) if arg.lstrip("-").isdigit() else None
+
+
+async def _accounts_text(session: AsyncSession) -> str:
+    owners = await repo.archive_owners(session)
+    if not owners:
+        return "В архиве пока нет ни одного аккаунта."
+    lines = ["<b>Аккаунты в архиве</b>", ""]
+    for owner_id, count in owners:
+        person = await session.get(User, owner_id)
+        name = html.escape(person.first_name if person else str(owner_id))
+        lines.append(
+            f"• <b>{name}</b> ({owner_id}), {count} сообщ.: "
+            f"/archive {owner_id} или /deleted {owner_id}"
+        )
+    return "\n".join(lines)
+
+
+async def _status_text(session: AsyncSession, owner_id: int) -> str:
+    connected = await repo.has_active_connection(session, owner_id)
+    chats, messages, edited, deleted = await repo.counts(session, owner_id)
     text = f"{archive_head(connected)}\n\n{archive_stats(chats, messages, edited, deleted)}"
     if not connected:
         text += "\n\n" + ARCHIVE_HOW_TO
     return text
 
 
-async def cmd_archive(message: Message, session: AsyncSession, user: User, settings: Settings):
+async def cmd_archive(
+    message: Message,
+    command: CommandObject,
+    session: AsyncSession,
+    user: User,
+    settings: Settings,
+):
+    arg = (command.args or "").strip()
+    if user.id in settings.admin_ids and not arg:
+        await message.answer(await _accounts_text(session), parse_mode="HTML")
+        return
+    owner_id = _target(user, settings, arg)
+    if owner_id is None:
+        await message.answer("Укажите числовой id аккаунта: /archive 123", parse_mode="HTML")
+        return
+    # Чужой архив админ смотрит только как сводку: переключатели относятся к своему.
+    markup = _status_markup(user, settings) if owner_id == user.id else None
     await message.answer(
-        await _status_text(session, user),
-        reply_markup=_status_markup(user, settings),
-        parse_mode="HTML",
+        await _status_text(session, owner_id), reply_markup=markup, parse_mode="HTML"
     )
 
 
@@ -99,7 +135,7 @@ async def on_toggle(
     if isinstance(query.message, Message):
         try:
             await query.message.edit_text(
-                await _status_text(session, user),
+                await _status_text(session, user.id),
                 reply_markup=_status_markup(user, settings),
                 parse_mode="HTML",
             )
@@ -127,11 +163,6 @@ async def _chats_view(session: AsyncSession, user: User) -> tuple[str, InlineKey
         )
     kb.adjust(1)
     return "\n".join(lines), kb.as_markup()
-
-
-async def cmd_chats(message: Message, session: AsyncSession, user: User):
-    text, markup = await _chats_view(session, user)
-    await message.answer(text, reply_markup=markup, parse_mode="HTML")
 
 
 async def on_chats(query: CallbackQuery, session: AsyncSession, user: User):
@@ -180,8 +211,18 @@ async def on_export(query: CallbackQuery, callback_data: ArchCb, session: AsyncS
     await query.answer()
 
 
-async def cmd_deleted(message: Message, session: AsyncSession, user: User):
-    rows = await repo.recent_deleted(session, user.id, limit=DELETED_LIMIT)
+async def cmd_deleted(
+    message: Message,
+    command: CommandObject,
+    session: AsyncSession,
+    user: User,
+    settings: Settings,
+):
+    owner_id = _target(user, settings, (command.args or "").strip())
+    if owner_id is None:
+        await message.answer("Укажите числовой id аккаунта: /deleted 123", parse_mode="HTML")
+        return
+    rows = await repo.recent_deleted(session, owner_id, limit=DELETED_LIMIT)
     if not rows:
         await message.answer(deleted_empty(), parse_mode="HTML")
         return
@@ -204,7 +245,6 @@ async def cmd_deleted(message: Message, session: AsyncSession, user: User):
 def create_router() -> Router:
     router = Router(name="archive")
     router.message.register(cmd_archive, Command("archive"))
-    router.message.register(cmd_chats, Command("chats"))
     router.message.register(cmd_deleted, Command("deleted"))
     router.callback_query.register(on_toggle, ArchCb.filter(F.action.in_({"edits", "deletes"})))
     router.callback_query.register(on_chats, ArchCb.filter(F.action == "chats"))

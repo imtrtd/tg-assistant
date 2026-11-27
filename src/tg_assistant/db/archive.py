@@ -260,6 +260,16 @@ async def chat_messages(
     return list(result)
 
 
+async def archive_owners(session: AsyncSession) -> list[tuple[int, int]]:
+    """(владелец, число сообщений) по всем аккаунтам — для админа."""
+    result = await session.execute(
+        select(ArchivedMessage.owner_id, func.count())
+        .group_by(ArchivedMessage.owner_id)
+        .order_by(ArchivedMessage.owner_id)
+    )
+    return [(int(owner), int(count)) for owner, count in result.all()]
+
+
 async def recent_deleted(
     session: AsyncSession, owner_id: int, *, limit: int
 ) -> list[ArchivedMessage]:
