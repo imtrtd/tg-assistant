@@ -97,7 +97,6 @@ async def test_startup_registers_commands_and_descriptions(bot, dp):
             "archive",
             "digest",
             "export",
-            "app",
             "web",
             "timezone",
         } <= private_names

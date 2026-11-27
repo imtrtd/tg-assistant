@@ -22,10 +22,9 @@ def make_dp(session_factory, monkeypatch):
     return factory
 
 
-async def test_web_and_app_commands_explain_when_not_configured(bot, make_dp):
+async def test_web_command_explains_when_not_configured(bot, make_dp):
     dp = make_dp()
     await dp.feed_update(bot, update_from(ALLOWED_ID, "/web"))
-    await dp.feed_update(bot, update_from(ALLOWED_ID, "/app"))
 
     assert all("WEB_APP_URL" in text for text in sent_texts(bot))
 
@@ -39,16 +38,6 @@ async def test_web_command_sends_one_time_link_without_preview(bot, make_dp):
     token = message.text.split("https://bot.example.com/#login=")[1].split()[0]
     assert dp["login_tokens"].redeem(token) == ALLOWED_ID
     assert dp["login_tokens"].redeem(token) is None
-
-
-async def test_app_command_sends_web_app_button_only_over_https(bot, make_dp):
-    await make_dp("https://bot.example.com").feed_update(bot, update_from(ALLOWED_ID, "/app"))
-    await make_dp("http://localhost:8080").feed_update(bot, update_from(ALLOWED_ID, "/app"))
-
-    with_button, without = sent_methods(bot, SendMessage)
-    button = with_button.reply_markup.inline_keyboard[0][0]
-    assert button.web_app.url == "https://bot.example.com"
-    assert without.reply_markup is None and "/web" in without.text
 
 
 async def _startup(bot, dp):
